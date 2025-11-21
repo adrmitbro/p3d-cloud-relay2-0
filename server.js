@@ -2,6 +2,7 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,7 +13,8 @@ const PORT = process.env.PORT || 3000;
 // Simple session storage: uniqueId -> { pcClient, mobileClients: Set(), password, guestPassword }
 const sessions = new Map();
 
-app.use(express.static('public'));
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/health', (req, res) => {
   res.json({ 
@@ -26,7 +28,7 @@ app.get('/', (req, res) => {
 });
 
 wss.on('connection', (ws, req) => {
-  console.log('New connection');
+  console.log('New connection from:', req.socket.remoteAddress);
   
   ws.on('message', (message) => {
     try {
@@ -112,10 +114,13 @@ wss.on('connection', (ws, req) => {
               data.type === 'pause_toggle' || 
               data.type === 'save_game' ||
               data.type === 'toggle_gear' ||
-              data.type === 'toggle_spoilers' ||
+              data.type === 'toggle_speedbrake' ||
               data.type === 'toggle_parking_brake' ||
               data.type === 'change_flaps' ||
-              data.type === 'throttle_control') {
+              data.type === 'throttle_control' ||
+              data.type === 'view_change' ||
+              data.type === 'camera_control' ||
+              data.type === 'request_screenshot') {
             if (!ws.hasControlAccess) {
               ws.send(JSON.stringify({ 
                 type: 'control_required',
@@ -126,22 +131,32 @@ wss.on('connection', (ws, req) => {
           }
           
           // Forward to PC
-          if (session.pcClient.readyState === WebSocket.OPEN) {
+          if (session.pcClient && session.pcClient.readyState === WebSocket.OPEN) {
             session.pcClient.send(JSON.stringify(data));
           }
         }
         else if (ws.clientType === 'pc') {
-          // Broadcast to all mobile clients
-          session.mobileClients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify(data));
-            }
-          });
+          // Handle screenshot data
+          if (data.type === 'screenshot') {
+            // Broadcast screenshot to all mobile clients
+            session.mobileClients.forEach(client => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(data));
+              }
+            });
+          } else {
+            // Broadcast other messages to all mobile clients
+            session.mobileClients.forEach(client => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(data));
+              }
+            });
+          }
         }
       }
       
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error processing message:', error);
     }
   });
 
@@ -166,6 +181,10 @@ wss.on('connection', (ws, req) => {
       }
     }
   });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
 });
 
 function getMobileAppHTML() {
@@ -181,9 +200,11 @@ function getMobileAppHTML() {
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            font-family: 'Segoe UI', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             background: #000000;
             color: white;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         .header {
             background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
@@ -231,6 +252,7 @@ function getMobileAppHTML() {
             color: white;
             font-size: 15px;
             margin: 10px 0;
+            -webkit-appearance: none;
         }
         input::placeholder { color: #666; }
         input:focus { outline: none; border-color: #167fac; }
@@ -245,6 +267,7 @@ function getMobileAppHTML() {
             cursor: pointer;
             margin: 8px 0;
             transition: all 0.3s;
+            -webkit-tap-highlight-color: transparent;
         }
         .btn-primary { background: #167fac; color: #fff; }
         .btn-primary:active { background: #1a8fc4; }
@@ -280,6 +303,7 @@ function getMobileAppHTML() {
             font-size: 13px;
             font-weight: bold;
             transition: all 0.3s;
+            -webkit-tap-highlight-color: transparent;
         }
         .tab.active {
             color: #167fac;
@@ -351,6 +375,7 @@ function getMobileAppHTML() {
             cursor: pointer;
             font-size: 12px;
             transition: all 0.3s;
+            -webkit-tap-highlight-color: transparent;
         }
         .toggle-btn.on { background: #167fac; color: #fff; }
         .toggle-btn.off { background: #333; color: #888; }
@@ -400,11 +425,125 @@ function getMobileAppHTML() {
             color: #167fac;
             margin-bottom: 15px;
         }
+        
+        /* View Tab Styles */
+        #simulatorView {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 12px;
+            border: 1px solid #333;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #simulatorImage {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        
+        .view-placeholder {
+            color: #666;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .view-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .view-btn {
+            padding: 12px;
+            background: #2d2d2d;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #ccc;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .view-btn:hover {
+            background: #3d3d3d;
+            border-color: #167fac;
+        }
+        
+        .view-btn.active {
+            background: #167fac;
+            color: #fff;
+            border-color: #167fac;
+        }
+        
+        .camera-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .camera-btn {
+            padding: 15px;
+            background: #2d2d2d;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #ccc;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .camera-btn:hover {
+            background: #3d3d3d;
+            border-color: #167fac;
+        }
+        
+        .camera-btn:active {
+            background: #167fac;
+            color: #fff;
+        }
+        
+        .camera-btn.center {
+            grid-column: 2;
+        }
+        
+        .view-info {
+            text-align: center;
+            padding: 8px;
+            background: #0d0d0d;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 { font-size: 18px; }
+            .tabs { font-size: 12px; }
+            .data-value { font-size: 20px; }
+        }
     </style>
 </head>
 <body>
     <div class='header'>
-        <h1>Prepar3D Remote</h1>
+        <h1>✈️ Prepar3D Remote</h1>
         <div id='statusBadge' class='status offline'>Offline</div>
     </div>
 
@@ -414,7 +553,7 @@ function getMobileAppHTML() {
             <div class='info-box'>
                 Enter your Unique ID from the PC Server
             </div>
-            <input type='text' id='uniqueId' placeholder='Unique ID' autocapitalize='off'>
+            <input type='text' id='uniqueId' placeholder='Unique ID' autocapitalize='off' autocomplete='off'>
             <button class='btn btn-primary' onclick='connectToSim()'>Connect</button>
         </div>
     </div>
@@ -423,7 +562,8 @@ function getMobileAppHTML() {
         <div class='tabs'>
             <button class='tab active' onclick='switchTab(0)'>Flight</button>
             <button class='tab' onclick='switchTab(1)'>Map</button>
-            <button class='tab' onclick='switchTab(2)'>Autopilot</button>
+            <button class='tab' onclick='switchTab(2)'>View</button>
+            <button class='tab' onclick='switchTab(3)'>Autopilot</button>
         </div>
 
         <div class='tab-content active'>
@@ -469,6 +609,45 @@ function getMobileAppHTML() {
         <div class='tab-content'>
             <div class='card'>
                 <div id='map'></div>
+            </div>
+        </div>
+
+        <div class='tab-content'>
+            <div class='card'>
+                <div class='view-info' id='viewInfo'>Current View: Cockpit</div>
+                <div id='simulatorView'>
+                    <div id='simulatorImageContainer'>
+                        <div class='view-placeholder'>Waiting for simulator view...</div>
+                    </div>
+                    <img id='simulatorImage' style='display:none;' alt='Simulator View'>
+                </div>
+            </div>
+            
+            <div class='card'>
+                <h3>View Selection</h3>
+                <div class='view-controls'>
+                    <button class='view-btn active' onclick='changeView("cockpit")'>Cockpit</button>
+                    <button class='view-btn' onclick='changeView("virtual_cockpit")'>Virtual Cockpit</button>
+                    <button class='view-btn' onclick='changeView("spot")'>Spot</button>
+                    <button class='view-btn' onclick='changeView("external")'>External</button>
+                    <button class='view-btn' onclick='changeView("tower")'>Tower</button>
+                    <button class='view-btn' onclick='changeView("follow")'>Follow</button>
+                </div>
+            </div>
+            
+            <div class='card'>
+                <h3>Camera Movement</h3>
+                <div class='camera-controls'>
+                    <button class='camera-btn' ontouchstart='cameraMove("up")' ontouchend='stopCameraMove()' onmousedown='cameraMove("up")' onmouseup='stopCameraMove()' onmouseleave='stopCameraMove()'>↑</button>
+                    <button class='camera-btn center' ontouchstart='cameraMove("forward")' ontouchend='stopCameraMove()' onmousedown='cameraMove("forward")' onmouseup='stopCameraMove()' onmouseleave='stopCameraMove()'>⬆</button>
+                    <button class='camera-btn' ontouchstart='cameraMove("down")' ontouchend='stopCameraMove()' onmousedown='cameraMove("down")' onmouseup='stopCameraMove()' onmouseleave='stopCameraMove()'>↓</button>
+                    <button class='camera-btn' ontouchstart='cameraMove("left")' ontouchend='stopCameraMove()' onmousedown='cameraMove("left")' onmouseup='stopCameraMove()' onmouseleave='stopCameraMove()'>←</button>
+                    <button class='camera-btn center' ontouchstart='cameraMove("reset")' ontouchend='stopCameraMove()' onmousedown='cameraMove("reset")' onmouseup='stopCameraMove()' onmouseleave='stopCameraMove()'>⟲</button>
+                    <button class='camera-btn' ontouchstart='cameraMove("right")' ontouchend='stopCameraMove()' onmousedown='cameraMove("right")' onmouseup='stopCameraMove()' onmouseleave='stopCameraMove()'>→</button>
+                    <button class='camera-btn' ontouchstart='cameraMove("zoom_in")' ontouchend='stopCameraMove()' onmousedown='cameraMove("zoom_in")' onmouseup='stopCameraMove()' onmouseleave='stopCameraMove()'>+</button>
+                    <button class='camera-btn center' ontouchstart='cameraMove("backward")' ontouchend='stopCameraMove()' onmousedown='cameraMove("backward")' onmouseup='stopCameraMove()' onmouseleave='stopCameraMove()'>⬇</button>
+                    <button class='camera-btn' ontouchstart='cameraMove("zoom_out")' ontouchend='stopCameraMove()' onmousedown='cameraMove("zoom_out")' onmouseup='stopCameraMove()' onmouseleave='stopCameraMove()'>-</button>
+                </div>
             </div>
         </div>
 
@@ -595,6 +774,10 @@ function getMobileAppHTML() {
         let uniqueId = null;
         let hasControl = false;
         let isPaused = false;
+        let currentView = 'cockpit';
+        let cameraInterval = null;
+        let lastScreenshotTime = 0;
+        let reconnectInterval = null;
 
         function switchTab(index) {
             document.querySelectorAll('.tab').forEach((tab, i) => {
@@ -607,6 +790,11 @@ function getMobileAppHTML() {
             if (index === 1 && !map) {
                 setTimeout(initMap, 100);
             }
+            
+            // Request screenshot when switching to view tab
+            if (index === 2 && ws && ws.readyState === WebSocket.OPEN) {
+                requestScreenshot();
+            }
         }
 
         function connectToSim() {
@@ -618,10 +806,17 @@ function getMobileAppHTML() {
             
             localStorage.setItem('p3d_unique_id', uniqueId);
             
+            // Clear any existing reconnect interval
+            if (reconnectInterval) {
+                clearInterval(reconnectInterval);
+                reconnectInterval = null;
+            }
+            
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(protocol + '//' + window.location.host);
             
             ws.onopen = () => {
+                console.log('Connected to server');
                 ws.send(JSON.stringify({ 
                     type: 'connect_mobile',
                     uniqueId: uniqueId
@@ -634,8 +829,20 @@ function getMobileAppHTML() {
             };
 
             ws.onclose = () => {
+                console.log('Disconnected from server');
                 updateStatus('offline');
-                setTimeout(connectToSim, 3000);
+                
+                // Try to reconnect every 3 seconds
+                reconnectInterval = setInterval(() => {
+                    if (ws && ws.readyState === WebSocket.CLOSED) {
+                        console.log('Attempting to reconnect...');
+                        connectToSim();
+                    }
+                }, 3000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
             };
         }
 
@@ -645,6 +852,12 @@ function getMobileAppHTML() {
                     document.getElementById('loginScreen').classList.add('hidden');
                     document.getElementById('mainApp').classList.remove('hidden');
                     updateStatus(data.pcOnline ? 'connected' : 'offline');
+                    
+                    // Clear reconnect interval on successful connection
+                    if (reconnectInterval) {
+                        clearInterval(reconnectInterval);
+                        reconnectInterval = null;
+                    }
                     break;
                     
                 case 'error':
@@ -673,6 +886,10 @@ function getMobileAppHTML() {
                     
                 case 'autopilot_state':
                     updateAutopilotUI(data.data);
+                    break;
+                    
+                case 'screenshot':
+                    updateSimulatorView(data.image);
                     break;
                     
                 case 'pc_offline':
@@ -705,14 +922,14 @@ function getMobileAppHTML() {
                 document.getElementById('wpEte').textContent = 'ETE: --';
             }
             
-            // Total distance to destination - FIXED
+            // Total distance to destination
             if (data.totalDistance && data.totalDistance > 0) {
                 document.getElementById('totalDistance').textContent = data.totalDistance.toFixed(1);
             } else {
                 document.getElementById('totalDistance').textContent = '--';
             }
             
-            // Total ETE - FIXED
+            // Total ETE
             if (data.totalEte && data.totalEte > 0) {
                 const hours = Math.floor(data.totalEte / 3600);
                 const minutes = Math.floor((data.totalEte % 3600) / 60);
@@ -751,7 +968,7 @@ function getMobileAppHTML() {
             
             document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
             
-            // Spoilers - FIXED
+            // Spoilers
             const spoilersBtn = document.getElementById('spoilers');
             const spoilersActive = data.spoilers > 10;
             spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
@@ -805,6 +1022,102 @@ function getMobileAppHTML() {
             map.setView([lat, lon], map.getZoom());
         }
 
+        // View Tab Functions
+        function requestScreenshot() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'request_screenshot' }));
+            }
+        }
+
+        function updateSimulatorView(imageData) {
+            const img = document.getElementById('simulatorImage');
+            const container = document.getElementById('simulatorImageContainer');
+            
+            if (imageData) {
+                img.src = 'data:image/jpeg;base64,' + imageData;
+                img.style.display = 'block';
+                container.style.display = 'none';
+                lastScreenshotTime = Date.now();
+            } else {
+                img.style.display = 'none';
+                container.style.display = 'block';
+            }
+        }
+
+        function changeView(viewType) {
+            currentView = viewType;
+            
+            // Update active button
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update view info
+            const viewNames = {
+                'cockpit': 'Cockpit',
+                'virtual_cockpit': 'Virtual Cockpit',
+                'spot': 'Spot',
+                'external': 'External',
+                'tower': 'Tower',
+                'follow': 'Follow'
+            };
+            document.getElementById('viewInfo').textContent = 'Current View: ' + viewNames[viewType];
+            
+            // Send view change command
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ 
+                    type: 'view_change',
+                    view: viewType
+                }));
+            }
+            
+            // Request screenshot after view change
+            setTimeout(requestScreenshot, 500);
+        }
+
+        function cameraMove(direction) {
+            if (cameraInterval) return;
+            
+            // Send initial camera movement
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ 
+                    type: 'camera_control',
+                    action: 'start',
+                    direction: direction
+                }));
+            }
+            
+            // Continue sending camera movement while held
+            cameraInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ 
+                        type: 'camera_control',
+                        action: 'continue',
+                        direction: direction
+                    }));
+                }
+            }, 100);
+        }
+
+        function stopCameraMove() {
+            if (cameraInterval) {
+                clearInterval(cameraInterval);
+                cameraInterval = null;
+                
+                // Send stop camera movement
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ 
+                        type: 'camera_control',
+                        action: 'stop'
+                    }));
+                }
+                
+                // Request screenshot after camera movement
+                setTimeout(requestScreenshot, 300);
+            }
+        }
+
         function unlockControls() {
             const password = document.getElementById('controlPassword').value;
             ws.send(JSON.stringify({ type: 'request_control', password }));
@@ -820,7 +1133,6 @@ function getMobileAppHTML() {
         }
 
         function toggleAP(system) {
-            // FIXED: Send specific messages for LOC and ILS
             if (system === 'nav') {
                 ws.send(JSON.stringify({ type: 'autopilot_toggle_loc' }));
             } else if (system === 'approach') {
@@ -871,12 +1183,10 @@ function getMobileAppHTML() {
         }
 
         function toggleSpoilers() {
-            // FIXED: Send specific message for speedbrakes
             ws.send(JSON.stringify({ type: 'toggle_speedbrake' }));
         }
 
         function toggleParkingBrake() {
-            // FIXED: Send specific message for parking brake
             ws.send(JSON.stringify({ type: 'toggle_parking_brake' }));
         }
 
@@ -884,13 +1194,34 @@ function getMobileAppHTML() {
             ws.send(JSON.stringify({ type: 'change_flaps', direction }));
         }
 
-        // Load saved ID
+        // Auto-refresh screenshot when on view tab
+        setInterval(() => {
+            if (document.querySelector('.tab:nth-child(3)').classList.contains('active') && 
+                ws && ws.readyState === WebSocket.OPEN &&
+                Date.now() - lastScreenshotTime > 2000) {
+                requestScreenshot();
+            }
+        }, 3000);
+
+        // Load saved ID and auto-connect
         window.onload = () => {
             const savedId = localStorage.getItem('p3d_unique_id');
             if (savedId) {
                 document.getElementById('uniqueId').value = savedId;
+                // Auto-connect if ID is saved
+                setTimeout(() => connectToSim(), 500);
             }
         };
+
+        // Handle page visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && ws && ws.readyState === WebSocket.OPEN) {
+                // Request data when page becomes visible
+                if (document.querySelector('.tab:nth-child(3)').classList.contains('active')) {
+                    requestScreenshot();
+                }
+            }
+        });
     </script>
 </body>
 </html>`;
@@ -898,4 +1229,5 @@ function getMobileAppHTML() {
 
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
+  console.log(`Access at: http://localhost:${PORT}`);
 });
