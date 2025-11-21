@@ -114,7 +114,8 @@ wss.on('connection', (ws, req) => {
               data.type === 'toggle_speedbrake' ||
               data.type === 'toggle_loc' ||
               data.type === 'toggle_parking_brake' ||
-              data.type === 'toggle_ils') {
+              data.type === 'toggle_ils' ||
+              data.type === 'toggle_nav_mode') {
             if (!ws.hasControlAccess) {
               ws.send(JSON.stringify({ 
                 type: 'control_required',
@@ -181,13 +182,13 @@ function getMobileAppHTML() {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: 'Segoe UI', Arial, sans-serif;
-            background: #003057;
-            color: white;
+            background: #001a2e;
+            color: #e0e0e0;
         }
         .header {
-            background: linear-gradient(135deg, #003057 0%, #005a9c 100%);
+            background: linear-gradient(135deg, #001a2e 0%, #003459 100%);
             padding: 15px 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
         .header h1 { 
             font-size: 20px;
@@ -213,20 +214,20 @@ function getMobileAppHTML() {
             margin: 40px auto;
         }
         .login-card {
-            background: #004d7a;
+            background: #002845;
             border-radius: 15px;
             padding: 25px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
         .login-card h2 { margin-bottom: 20px; color: #fff; }
         
         input {
             width: 100%;
             padding: 14px;
-            background: #003057;
-            border: 2px solid #005a9c;
+            background: #001a2e;
+            border: 2px solid #003459;
             border-radius: 8px;
-            color: white;
+            color: #e0e0e0;
             font-size: 15px;
             margin: 10px 0;
         }
@@ -243,15 +244,15 @@ function getMobileAppHTML() {
             margin: 8px 0;
         }
         .btn-primary { background: #00c853; color: white; }
-        .btn-secondary { background: #005a9c; color: white; }
-        .btn-pause { background: #005a9c; color: white; }
+        .btn-secondary { background: #003459; color: white; }
+        .btn-pause { background: #003459; color: white; }
         .btn-pause.paused { background: #ff5252; color: white; }
         .btn:disabled { background: #555; opacity: 0.5; }
         
         .tabs {
             display: flex;
-            background: #003057;
-            border-bottom: 2px solid #005a9c;
+            background: #001a2e;
+            border-bottom: 2px solid #003459;
         }
         .tab {
             flex: 1;
@@ -266,7 +267,7 @@ function getMobileAppHTML() {
         }
         .tab.active {
             color: white;
-            background: #004d7a;
+            background: #002845;
             border-bottom: 3px solid #00c853;
         }
         
@@ -277,7 +278,7 @@ function getMobileAppHTML() {
         .tab-content.active { display: block; }
         
         .card {
-            background: #004d7a;
+            background: #002845;
             border-radius: 12px;
             padding: 15px;
             margin-bottom: 15px;
@@ -289,7 +290,7 @@ function getMobileAppHTML() {
             gap: 10px;
         }
         .data-item {
-            background: #003057;
+            background: #001a2e;
             padding: 12px;
             border-radius: 8px;
             text-align: center;
@@ -317,7 +318,7 @@ function getMobileAppHTML() {
             justify-content: space-between;
             align-items: center;
             padding: 12px;
-            background: #003057;
+            background: #001a2e;
             border-radius: 8px;
             margin-bottom: 8px;
         }
@@ -336,7 +337,7 @@ function getMobileAppHTML() {
         .hidden { display: none !important; }
         
         .info-box {
-            background: #005a9c;
+            background: #003459;
             padding: 12px;
             border-radius: 8px;
             margin: 10px 0;
@@ -344,7 +345,7 @@ function getMobileAppHTML() {
         }
         
         .waypoint-info {
-            background: #003057;
+            background: #001a2e;
             padding: 12px;
             border-radius: 8px;
             margin: 10px 0;
@@ -694,10 +695,10 @@ function getMobileAppHTML() {
             
             document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
             
-            // NAV/GPS toggle - Fixed to show correct state
+            // NAV/GPS toggle - Fixed: show GPS when GPS is active, NAV when NAV is active
             const navBtn = document.getElementById('navMode');
-            navBtn.textContent = data.navMode ? 'NAV' : 'GPS';
-            navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
+            navBtn.textContent = data.gpsActive ? 'GPS' : 'NAV';
+            navBtn.className = 'toggle-btn ' + (data.gpsActive ? 'on' : 'off');
         }
 
         function updateToggle(id, state, text) {
