@@ -1,168 +1,3 @@
-// P3D Remote Cloud Relay - Simple Edition
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-const PORT = process.env.PORT || 3000;
-
-// Simple session storage: uniqueId -> { pcClient, mobileClients: Set(), password, guestPassword }
-const sessions = new Map();
-
-app.use(express.static('public'));
-
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok',
-    activeSessions: sessions.size
-  });
-});
-
-app.get('/', (req, res) => {
-  res.send(getMobileAppHTML());
-});
-
-wss.on('connection', (ws, req) => {
-  console.log('New connection');
-  
-  ws.on('message', (message) => {
-    try {
-      const data = JSON.parse(message);
-      
-      if (data.type === 'register_pc') {
-        // PC registering with unique ID
-        const uniqueId = data.uniqueId;
-        const password = data.password;
-        const guestPassword = data.guestPassword;
-        
-        ws.uniqueId = uniqueId;
-        ws.clientType = 'pc';
-        
-        if (!sessions.has(uniqueId)) {
-          sessions.set(uniqueId, {
-            pcClient: ws,
-            mobileClients: new Set(),
-            password: password,
-            guestPassword: guestPassword
-          });
-        } else {
-          const session = sessions.get(uniqueId);
-          session.pcClient = ws;
-          session.password = password;
-          session.guestPassword = guestPassword;
-        }
-        
-        ws.send(JSON.stringify({ type: 'registered', uniqueId }));
-        console.log(`PC registered: ${uniqueId}`);
-      }
-      
-      else if (data.type === 'connect_mobile') {
-        // Mobile connecting with unique ID
-        const uniqueId = data.uniqueId;
-        
-        if (!sessions.has(uniqueId)) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Invalid ID' }));
-          return;
-        }
-        
-        const session = sessions.get(uniqueId);
-        ws.uniqueId = uniqueId;
-        ws.clientType = 'mobile';
-        ws.hasControlAccess = false;
-        
-        session.mobileClients.add(ws);
-        
-        ws.send(JSON.stringify({ 
-          type: 'connected',
-          pcOnline: !!session.pcClient
-        }));
-        
-        console.log(`Mobile connected to: ${uniqueId}`);
-      }
-      
-      else if (data.type === 'request_control') {
-        // Mobile requesting control access
-        const password = data.password;
-        const session = sessions.get(ws.uniqueId);
-        
-        if (!session) {
-          ws.send(JSON.stringify({ type: 'auth_failed' }));
-          return;
-        }
-        
-        if (password === session.password || password === session.guestPassword) {
-          ws.hasControlAccess = true;
-          ws.send(JSON.stringify({ type: 'control_granted' }));
-        } else {
-          ws.send(JSON.stringify({ type: 'auth_failed' }));
-        }
-      }
-      
-      else {
-        // Route all other messages
-        const session = sessions.get(ws.uniqueId);
-        if (!session) return;
-        
-        if (ws.clientType === 'mobile' && session.pcClient) {
-          // Check if command requires control access
-          if (data.type.includes('autopilot') || 
-              data.type === 'pause_toggle' || 
-              data.type === 'save_game') {
-            if (!ws.hasControlAccess) {
-              ws.send(JSON.stringify({ 
-                type: 'control_required',
-                message: 'Enter password to access controls'
-              }));
-              return;
-            }
-          }
-          
-          // Forward to PC
-          if (session.pcClient.readyState === WebSocket.OPEN) {
-            session.pcClient.send(JSON.stringify(data));
-          }
-        }
-        else if (ws.clientType === 'pc') {
-          // Broadcast to all mobile clients
-          session.mobileClients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify(data));
-            }
-          });
-        }
-      }
-      
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  });
-
-  ws.on('close', () => {
-    if (ws.uniqueId && sessions.has(ws.uniqueId)) {
-      const session = sessions.get(ws.uniqueId);
-      
-      if (ws.clientType === 'pc') {
-        console.log(`PC disconnected: ${ws.uniqueId}`);
-        session.pcClient = null;
-        
-        // Notify mobile clients
-        session.mobileClients.forEach(client => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'pc_offline' }));
-          }
-        });
-      }
-      else if (ws.clientType === 'mobile') {
-        session.mobileClients.delete(ws);
-        console.log(`Mobile disconnected from: ${ws.uniqueId}`);
-      }
-    }
-  });
-});
-
 function getMobileAppHTML() {
   return `<!DOCTYPE html>
 <html>
@@ -240,6 +75,7 @@ function getMobileAppHTML() {
         }
         .btn-primary { background: #00c853; color: white; }
         .btn-secondary { background: #005a9c; color: white; }
+        .btn-danger { background: #f44336; color: white; }
         .btn:disabled { background: #555; opacity: 0.5; }
         
         .tabs {
@@ -336,6 +172,41 @@ function getMobileAppHTML() {
             margin: 10px 0;
             font-size: 13px;
         }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #003057;
+            outline: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00c853;
+            cursor: pointer;
+        }
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00c853;
+            cursor: pointer;
+        }
+        .slider-value {
+            min-width: 45px;
+            text-align: right;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -350,7 +221,7 @@ function getMobileAppHTML() {
             <div class='info-box'>
                 Enter your Unique ID from the PC Server
             </div>
-            <input type='text' id='uniqueId' placeholder='Unique ID (e.g., Adrian)' autocapitalize='off'>
+            <input type='text' id='uniqueId' placeholder='Unique ID' autocapitalize='off'>
             <button class='btn btn-primary' onclick='connectToSim()'>Connect</button>
         </div>
     </div>
@@ -411,7 +282,7 @@ function getMobileAppHTML() {
             
             <div id='controlPanel' class='hidden'>
                 <div class='card'>
-                    <button class='btn btn-secondary' id='btnPause' onclick='togglePause()'>⏸️ Pause</button>
+                    <button class='btn' id='btnPause' onclick='togglePause()'>⏸️ Pause</button>
                     <button class='btn btn-primary' onclick='saveGame()'>💾 Save</button>
                 </div>
                 
@@ -423,6 +294,11 @@ function getMobileAppHTML() {
                         <button class='toggle-btn off' id='apMaster' onclick='toggleAP("master")'>OFF</button>
                     </div>
                     
+                    <div class='control-row'>
+                        <span class='control-label'>NAV1 Lock</span>
+                        <button class='toggle-btn off' id='apNav1Lock' onclick='toggleAP("nav1_lock")'>OFF</button>
+                    </div>
+
                     <div class='control-row'>
                         <span class='control-label'>Altitude</span>
                         <button class='toggle-btn off' id='apAlt' onclick='toggleAP("altitude")'>OFF</button>
@@ -471,6 +347,11 @@ function getMobileAppHTML() {
                     <h3 style='margin-bottom: 15px;'>Aircraft</h3>
                     
                     <div class='control-row'>
+                        <span class='control-label'>Parking Brake</span>
+                        <button class='toggle-btn off' id='parkingBrake' onclick='toggleParkingBrake()'>OFF</button>
+                    </div>
+
+                    <div class='control-row'>
                         <span class='control-label'>Landing Gear</span>
                         <button class='toggle-btn off' id='gear' onclick='toggleGear()'>UP</button>
                     </div>
@@ -481,6 +362,36 @@ function getMobileAppHTML() {
                             <button class='btn btn-secondary' style='width:auto; padding:8px 12px; margin:0 5px;' onclick='changeFlaps(-1)'>-</button>
                             <span id='flapsPos'>0%</span>
                             <button class='btn btn-secondary' style='width:auto; padding:8px 12px; margin:0 5px;' onclick='changeFlaps(1)'>+</button>
+                        </div>
+                    </div>
+
+                    <div class='control-row'>
+                        <span class='control-label'>Speedbrake</span>
+                        <div>
+                            <button class='btn btn-secondary' style='width:auto; padding:8px 12px; margin:0 5px;' onclick='changeSpeedbrake(-1)'>-</button>
+                            <span id='speedbrakePos'>0%</span>
+                            <button class='btn btn-secondary' style='width:auto; padding:8px 12px; margin:0 5px;' onclick='changeSpeedbrake(1)'>+</button>
+                        </div>
+                    </div>
+                    <button class='btn btn-secondary' onclick='toggleSpeedbrake()'>Toggle Speedbrake</button>
+                </div>
+
+                <div class='card'>
+                    <h3 style='margin-bottom: 15px;'>Engines</h3>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Throttle 1</span>
+                        <div class="slider-container">
+                            <input type="range" min="0" max="100" value="0" class="slider" id="throttle1Slider" oninput="setThrottle(1, this.value)">
+                            <span class="slider-value" id="throttle1Value">0%</span>
+                        </div>
+                    </div>
+
+                    <div class='control-row'>
+                        <span class='control-label'>Throttle 2</span>
+                        <div class="slider-container">
+                            <input type="range" min="0" max="100" value="0" class="slider" id="throttle2Slider" oninput="setThrottle(2, this.value)">
+                            <span class="slider-value" id="throttle2Value">0%</span>
                         </div>
                     </div>
                 </div>
@@ -518,7 +429,6 @@ function getMobileAppHTML() {
                 return;
             }
             
-            // Save to localStorage
             localStorage.setItem('p3d_unique_id', uniqueId);
             
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -606,7 +516,13 @@ function getMobileAppHTML() {
             document.getElementById('ete').textContent = 'ETE: ' + (hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm');
 
             const btnPause = document.getElementById('btnPause');
-            btnPause.textContent = data.isPaused ? '▶️ Resume' : '⏸️ Pause';
+            if (data.isPaused) {
+                btnPause.textContent = '▶️ Resume';
+                btnPause.style.background = '#f44336'; // Red for Paused
+            } else {
+                btnPause.textContent = '⏸️ Pause';
+                btnPause.style.background = '#005a9c'; // Normal color
+            }
 
             if (map && data.latitude && data.longitude) {
                 updateMap(data.latitude, data.longitude, data.heading);
@@ -615,6 +531,7 @@ function getMobileAppHTML() {
 
         function updateAutopilotUI(data) {
             updateToggle('apMaster', data.master);
+            updateToggle('apNav1Lock', data.nav1Lock);
             updateToggle('apAlt', data.altitude);
             updateToggle('apHdg', data.heading);
             updateToggle('apVS', data.vs);
@@ -622,8 +539,16 @@ function getMobileAppHTML() {
             updateToggle('apApp', data.approach);
             updateToggle('autoThrottle', data.throttle);
             updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
+            updateToggle('parkingBrake', data.parkingBrake);
             
             document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
+            document.getElementById('speedbrakePos').textContent = Math.round(data.speedbrake) + '%';
+            
+            // Update throttle sliders
+            document.getElementById('throttle1Slider').value = Math.round(data.throttle1 * 100);
+            document.getElementById('throttle1Value').textContent = Math.round(data.throttle1 * 100) + '%';
+            document.getElementById('throttle2Slider').value = Math.round(data.throttle2 * 100);
+            document.getElementById('throttle2Value').textContent = Math.round(data.throttle2 * 100) + '%';
             
             // NAV/GPS toggle
             const navBtn = document.getElementById('navMode');
@@ -633,6 +558,7 @@ function getMobileAppHTML() {
 
         function updateToggle(id, state, text) {
             const btn = document.getElementById(id);
+            if (!btn) return;
             btn.className = 'toggle-btn ' + (state ? 'on' : 'off');
             btn.textContent = text || (state ? 'ON' : 'OFF');
         }
@@ -673,7 +599,6 @@ function getMobileAppHTML() {
         }
 
         function updateAITraffic(aircraft) {
-            // Clear old markers
             aiMarkers.forEach(m => map.removeLayer(m));
             aiMarkers = [];
             
@@ -754,6 +679,25 @@ function getMobileAppHTML() {
             ws.send(JSON.stringify({ type: 'change_flaps', direction }));
         }
 
+        // --- NEW CONTROL FUNCTIONS ---
+        function toggleSpeedbrake() {
+            ws.send(JSON.stringify({ type: 'toggle_speedbrake' }));
+        }
+
+        function changeSpeedbrake(direction) {
+            ws.send(JSON.stringify({ type: 'change_speedbrake', direction }));
+        }
+
+        function toggleParkingBrake() {
+            ws.send(JSON.stringify({ type: 'toggle_parking_brake' }));
+        }
+
+        function setThrottle(engine, value) {
+            ws.send(JSON.stringify({ type: 'set_throttle', engine: engine, value: value / 100.0 }));
+            document.getElementById('throttle' + engine + 'Value').textContent = value + '%';
+        }
+
+
         // Load saved ID
         window.onload = () => {
             const savedId = localStorage.getItem('p3d_unique_id');
@@ -765,7 +709,3 @@ function getMobileAppHTML() {
 </body>
 </html>`;
 }
-
-server.listen(PORT, () => {
-  console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
-});
