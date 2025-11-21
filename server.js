@@ -113,6 +113,7 @@ wss.on('connection', (ws, req) => {
               data.type === 'save_game' ||
               data.type === 'toggle_gear' ||
               data.type === 'toggle_spoilers' ||
+              data.type === 'toggle_speedbrake' ||
               data.type === 'toggle_parking_brake' ||
               data.type === 'change_flaps' ||
               data.type === 'throttle_control') {
@@ -247,7 +248,7 @@ function getMobileAppHTML() {
             transition: all 0.3s;
         }
         .btn-primary { background: #167fac; color: #fff; }
-        .btn-primary:active { background: #1a8fc4; }
+        .btn-primary:active { background: #1a8fd4; }
         .btn-secondary { background: #2d2d2d; color: white; border: 1px solid #444; }
         .btn-secondary:active { background: #3d3d3d; }
         .btn-warning { background: #ff9800; color: #000; }
@@ -436,8 +437,8 @@ function getMobileAppHTML() {
 
             <div class='card'>
                 <div class='data-label'>Total Distance to Destination</div>
-                <div class='data-value'><span id='totalDistance'>--</span> nm</div>
-                <div style='margin-top: 8px; color: #888; font-size: 13px;' id='totalEte'>Total ETE: --</div>
+                <div class='data-value'><span id='distance'>--</span> nm</div>
+                <div style='margin-top: 8px; color: #888; font-size: 13px;' id='ete'>Total ETE: --</div>
             </div>
 
             <div class='card'>
@@ -533,17 +534,17 @@ function getMobileAppHTML() {
                     
                     <div class='control-row'>
                         <span class='control-label'>NAV/GPS Mode</span>
-                        <button class='toggle-btn off' id='navMode' onclick='toggleNavMode()'>NAV</button>
+                        <button class='toggle-btn off' id='navMode' onclick='toggleNavMode()'>GPS</button>
                     </div>
                     
                     <div class='control-row'>
                         <span class='control-label'>LOC Hold</span>
-                        <button class='toggle-btn off' id='apNav' onclick='toggleAP("nav")'>OFF</button>
+                        <button class='toggle-btn off' id='apNav' onclick='toggleAP("loc")'>OFF</button>
                     </div>
                     
                     <div class='control-row'>
                         <span class='control-label'>Approach</span>
-                        <button class='toggle-btn off' id='apApp' onclick='toggleAP("approach")'>OFF</button>
+                        <button class='toggle-btn off' id='apApp' onclick='toggleAP("ils")'>OFF</button>
                     </div>
                     
                     <div class='control-row'>
@@ -575,8 +576,8 @@ function getMobileAppHTML() {
                     </div>
                     
                     <div class='control-row'>
-                        <span class='control-label'>Speedbrakes</span>
-                        <button class='toggle-btn off' id='spoilers' onclick='toggleSpoilers()'>OFF</button>
+                        <span class='control-label'>Speedbrake</span>
+                        <button class='toggle-btn off' id='spoilers' onclick='toggleSpeedbrake()'>OFF</button>
                     </div>
                     
                     <div class='control-row'>
@@ -705,26 +706,27 @@ function getMobileAppHTML() {
                 document.getElementById('wpEte').textContent = 'ETE: --';
             }
             
-            // Total distance to destination
+            // Total distance to destination - FIXED
             if (data.totalDistance && data.totalDistance > 0) {
-                document.getElementById('totalDistance').textContent = data.totalDistance.toFixed(1);
+                document.getElementById('distance').textContent = data.totalDistance.toFixed(1);
             } else {
-                document.getElementById('totalDistance').textContent = '--';
+                document.getElementById('distance').textContent = '--';
             }
             
             // Total ETE
-            if (data.totalEte && data.totalEte > 0) {
-                const hours = Math.floor(data.totalEte / 3600);
-                const minutes = Math.floor((data.totalEte % 3600) / 60);
-                document.getElementById('totalEte').textContent = 'Total ETE: ' + (hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm');
+            if (data.ete && data.ete > 0) {
+                const hours = Math.floor(data.ete / 3600);
+                const minutes = Math.floor((data.ete % 3600) / 60);
+                document.getElementById('ete').textContent = 'Total ETE: ' + (hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm');
             } else {
-                document.getElementById('totalEte').textContent = 'Total ETE: --';
+                document.getElementById('ete').textContent = 'Total ETE: --';
             }
 
+            // Pause state - FIXED
             isPaused = data.isPaused;
             const btnPause = document.getElementById('btnPause');
             if (data.isPaused) {
-                btnPause.textContent = '▶️ Resume';
+                btnPause.textContent = '▶️ PAUSED - Resume';
                 btnPause.className = 'btn btn-warning paused';
             } else {
                 btnPause.textContent = '⏸️ Pause';
@@ -747,6 +749,7 @@ function getMobileAppHTML() {
             updateToggle('apBackcourse', data.backcourse);
             updateToggle('autoThrottle', data.throttle);
             updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
+            updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'SET' : 'OFF');
             
             document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
             
@@ -756,12 +759,7 @@ function getMobileAppHTML() {
             spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
             spoilersBtn.textContent = spoilersActive ? 'DEPLOYED' : 'RETRACTED';
             
-            // Parking brake
-            const parkingBtn = document.getElementById('parkingBrake');
-            parkingBtn.className = 'toggle-btn ' + (data.parkingBrake ? 'on' : 'off');
-            parkingBtn.textContent = data.parkingBrake ? 'SET' : 'OFF';
-            
-            // NAV/GPS toggle
+            // NAV/GPS toggle - FIXED: inverted the logic
             const navBtn = document.getElementById('navMode');
             navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
             navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
@@ -824,7 +822,14 @@ function getMobileAppHTML() {
         }
 
         function toggleAP(system) {
-            ws.send(JSON.stringify({ type: 'autopilot_toggle', system }));
+            // FIXED: Send the correct system name for LOC and ILS
+            if (system === 'loc') {
+                ws.send(JSON.stringify({ type: 'autopilot_toggle', system: 'loc' }));
+            } else if (system === 'ils') {
+                ws.send(JSON.stringify({ type: 'autopilot_toggle', system: 'ils' }));
+            } else {
+                ws.send(JSON.stringify({ type: 'autopilot_toggle', system }));
+            }
         }
 
         function setAltitude() {
@@ -867,8 +872,8 @@ function getMobileAppHTML() {
             ws.send(JSON.stringify({ type: 'toggle_gear' }));
         }
 
-        function toggleSpoilers() {
-            ws.send(JSON.stringify({ type: 'toggle_spoilers' }));
+        function toggleSpeedbrake() {
+            ws.send(JSON.stringify({ type: 'toggle_speedbrake' }));
         }
 
         function toggleParkingBrake() {
