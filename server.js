@@ -1,797 +1,892 @@
-using LockheedMartin.Prepar3D.SimConnect;
-using Newtonsoft.Json;
-using System;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
-using WebSocketSharp;
+// P3D Remote Cloud Relay - Enhanced Edition
+const express = require('express');
+const http = require('http');
+const WebSocket = require('ws');
 
-namespace P3DRemoteServer
-{
-    public class MainForm : Form
-    {
-        private SimConnect simconnect = null;
-        private const int WM_USER_SIMCONNECT = 0x0402;
-        private bool isConnected = false;
-        private bool isPaused = false;
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
-        private WebSocket ws;
-        private string CLOUD_URL = "wss://p3d-cloud-relay2-0.onrender.com";
-        private string SETTINGS_FILE = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "P3DRemoteServer",
-            "settings.json"
-        );
+const PORT = process.env.PORT || 3000;
 
-        private string uniqueId = "";
-        private string myPassword = "admin123";
-        private string guestPassword = "";
+// Simple session storage: uniqueId -> { pcClient, mobileClients: Set(), password, guestPassword }
+const sessions = new Map();
 
-        private Label lblUniqueId;
-        private Label lblMyPassword;
-        private Label lblGuestPassword;
-        private TextBox txtUniqueId;
-        private TextBox txtMyPassword;
-        private System.Windows.Forms.Timer updateTimer;
-        private System.Threading.Timer reconnectTimer;
+app.use(express.static('public'));
 
-        private PlaneData currentPlaneData;
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    activeSessions: sessions.size
+  });
+});
 
-        enum DEFINITIONS { PlaneData, AIData }
-        enum DATA_REQUESTS { REQUEST_1, REQUEST_AI }
-        enum EVENTS
-        {
-            PAUSE, SAVE,
-            AP_MASTER, AP_ALT_HOLD, AP_HDG_HOLD, AP_VS_HOLD, AP_AIRSPEED_HOLD, AP_APR_HOLD, AP_NAV1_HOLD, AP_BC_HOLD,
-            AP_ALT_SET, AP_HDG_SET, AP_VS_SET, AP_AIRSPEED_SET,
-            GEAR_TOGGLE, FLAPS_INCR, FLAPS_DECR, SPOILERS_TOGGLE,
-            TOGGLE_GPS_DRIVES_NAV1, AUTO_THROTTLE_ARM,
-            THROTTLE_FULL, THROTTLE_CUT, THROTTLE_INCR, THROTTLE_DECR,
-            PARKING_BRAKES
+app.get('/', (req, res) => {
+  res.send(getMobileAppHTML());
+});
+
+wss.on('connection', (ws, req) => {
+  console.log('New connection');
+  
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message);
+      
+      if (data.type === 'register_pc') {
+        // PC registering with unique ID
+        const uniqueId = data.uniqueId;
+        const password = data.password;
+        const guestPassword = data.guestPassword;
+        
+        ws.uniqueId = uniqueId;
+        ws.clientType = 'pc';
+        
+        if (!sessions.has(uniqueId)) {
+          sessions.set(uniqueId, {
+            pcClient: ws,
+            mobileClients: new Set(),
+            password: password,
+            guestPassword: guestPassword
+          });
+        } else {
+          const session = sessions.get(uniqueId);
+          session.pcClient = ws;
+          session.password = password;
+          session.guestPassword = guestPassword;
         }
-        enum GROUPID { GROUP0 }
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-        struct PlaneData
-        {
-            public double groundSpeed;
-            public double altitude;
-            public double heading;
-            public double latitude;
-            public double longitude;
-            public double verticalSpeed;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
-            public string gpsWpNextId;
-            public double gpsWpDistance;
-            public double gpsWpEte;
-            public double gpsTotalDistance;
-            public double gpsEte;
-            public double gpsIsActiveFlightPlan;
-            public double gpsIsActiveWaypoint;
-            public double gpsFlightPlanWpCount;
-
-            // Autopilot
-            public double autopilotMaster;
-            public double autopilotAltitude;
-            public double autopilotHeading;
-            public double autopilotVS;
-            public double autopilotAirspeed;
-            public double autopilotApproach;
-            public double autopilotNav1Lock;
-            public double autopilotBackcourse;
-            public double autopilotAltitudeVar;
-            public double autopilotHeadingVar;
-            public double autopilotVSVar;
-            public double autopilotAirspeedVar;
-            public double autoThrottle;
-
-            // Aircraft
-            public double gearPosition;
-            public double flapsPosition;
-            public double gpsNavMode;
-            public double spoilersPosition;
-            public double throttlePercent;
-            public double parkingBrake;
-            public double onGround;
-
-            // Pause
-            public double pauseState;
+        
+        ws.send(JSON.stringify({ type: 'registered', uniqueId }));
+        console.log(`PC registered: ${uniqueId}`);
+      }
+      
+      else if (data.type === 'connect_mobile') {
+        // Mobile connecting with unique ID
+        const uniqueId = data.uniqueId;
+        
+        if (!sessions.has(uniqueId)) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Invalid ID' }));
+          return;
         }
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
-        struct AIData
-        {
-            public double latitude;
-            public double longitude;
-            public double altitude;
-            public double heading;
-            public double groundSpeed;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
-            public string atcId;
+        
+        const session = sessions.get(uniqueId);
+        ws.uniqueId = uniqueId;
+        ws.clientType = 'mobile';
+        ws.hasControlAccess = false;
+        
+        session.mobileClients.add(ws);
+        
+        ws.send(JSON.stringify({ 
+          type: 'connected',
+          pcOnline: !!session.pcClient
+        }));
+        
+        console.log(`Mobile connected to: ${uniqueId}`);
+      }
+      
+      else if (data.type === 'request_control') {
+        // Mobile requesting control access
+        const password = data.password;
+        const session = sessions.get(ws.uniqueId);
+        
+        if (!session) {
+          ws.send(JSON.stringify({ type: 'auth_failed' }));
+          return;
         }
-
-        public MainForm()
-        {
-            InitializeUI();
-            LoadSettings();
-            InitializeSimConnect();
-            ConnectToCloud();
+        
+        if (password === session.password || password === session.guestPassword) {
+          ws.hasControlAccess = true;
+          ws.send(JSON.stringify({ type: 'control_granted' }));
+        } else {
+          ws.send(JSON.stringify({ type: 'auth_failed' }));
         }
-
-        private void InitializeUI()
-        {
-            this.Text = "Prepar3D Remote Server";
-            this.Size = new Size(600, 550);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
-            this.BackColor = Color.FromArgb(0, 48, 87);
-
-            // Header
-            Panel headerPanel = new Panel
-            {
-                Location = new Point(0, 0),
-                Size = new Size(600, 80),
-                BackColor = Color.FromArgb(0, 90, 156)
-            };
-            this.Controls.Add(headerPanel);
-
-            Label lblTitle = new Label
-            {
-                Text = "✈ Prepar3D Remote Server",
-                Location = new Point(20, 25),
-                Size = new Size(560, 35),
-                Font = new Font("Segoe UI", 18, FontStyle.Bold),
-                ForeColor = Color.White
-            };
-            headerPanel.Controls.Add(lblTitle);
-
-            // Connection Info Panel
-            GroupBox grpConnection = new GroupBox
-            {
-                Text = "Your Connection Info",
-                Location = new Point(20, 100),
-                Size = new Size(560, 180),
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                ForeColor = Color.White
-            };
-            this.Controls.Add(grpConnection);
-
-            Label lblIdLabel = new Label
-            {
-                Text = "Unique ID:",
-                Location = new Point(20, 35),
-                Size = new Size(100, 25),
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Color.White
-            };
-            grpConnection.Controls.Add(lblIdLabel);
-
-            txtUniqueId = new TextBox
-            {
-                Text = uniqueId,
-                Location = new Point(130, 33),
-                Size = new Size(300, 25),
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                BackColor = Color.FromArgb(0, 90, 156),
-                ForeColor = Color.Yellow,
-                BorderStyle = BorderStyle.FixedSingle
-            };
-            txtUniqueId.TextChanged += (s, e) => { uniqueId = txtUniqueId.Text; SaveSettings(); };
-            grpConnection.Controls.Add(txtUniqueId);
-
-            Button btnCopyId = new Button
-            {
-                Text = "Copy",
-                Location = new Point(440, 32),
-                Size = new Size(80, 27),
-                BackColor = Color.FromArgb(0, 200, 83),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
-            };
-            btnCopyId.Click += (s, e) => { Clipboard.SetText(uniqueId); MessageBox.Show($"Copied: {uniqueId}", "Copied!"); };
-            grpConnection.Controls.Add(btnCopyId);
-
-            Label lblPwLabel = new Label
-            {
-                Text = "My Password:",
-                Location = new Point(20, 75),
-                Size = new Size(100, 25),
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Color.White
-            };
-            grpConnection.Controls.Add(lblPwLabel);
-
-            txtMyPassword = new TextBox
-            {
-                Text = myPassword,
-                Location = new Point(130, 73),
-                Size = new Size(300, 25),
-                Font = new Font("Segoe UI", 10),
-                BackColor = Color.FromArgb(0, 90, 156),
-                ForeColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
-            };
-            txtMyPassword.TextChanged += (s, e) => { myPassword = txtMyPassword.Text; SaveSettings(); RegenerateGuestPassword(); };
-            grpConnection.Controls.Add(txtMyPassword);
-
-            Button btnCopyPw = new Button
-            {
-                Text = "Copy",
-                Location = new Point(440, 72),
-                Size = new Size(80, 27),
-                BackColor = Color.FromArgb(0, 200, 83),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
-            };
-            btnCopyPw.Click += (s, e) => { Clipboard.SetText(myPassword); MessageBox.Show($"Copied: {myPassword}", "Copied!"); };
-            grpConnection.Controls.Add(btnCopyPw);
-
-            lblGuestPassword = new Label
-            {
-                Text = $"Guest Password: {guestPassword}",
-                Location = new Point(20, 115),
-                Size = new Size(410, 25),
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Color.FromArgb(255, 200, 100)
-            };
-            grpConnection.Controls.Add(lblGuestPassword);
-
-            Button btnCopyGuest = new Button
-            {
-                Text = "Copy",
-                Location = new Point(440, 113),
-                Size = new Size(80, 27),
-                BackColor = Color.FromArgb(0, 200, 83),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
-            };
-            btnCopyGuest.Click += (s, e) => { Clipboard.SetText(guestPassword); MessageBox.Show($"Copied: {guestPassword}", "Copied!"); };
-            grpConnection.Controls.Add(btnCopyGuest);
-
-            Button btnRegenGuest = new Button
-            {
-                Text = "🔄 New Guest Password",
-                Location = new Point(20, 145),
-                Size = new Size(180, 27),
-                BackColor = Color.FromArgb(0, 90, 156),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
-            };
-            btnRegenGuest.Click += (s, e) => RegenerateGuestPassword();
-            grpConnection.Controls.Add(btnRegenGuest);
-
-            // Status Panel
-            GroupBox grpStatus = new GroupBox
-            {
-                Text = "Status",
-                Location = new Point(20, 300),
-                Size = new Size(560, 120),
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                ForeColor = Color.White
-            };
-            this.Controls.Add(grpStatus);
-
-            Label lblSimStatus = new Label
-            {
-                Name = "lblSimStatus",
-                Text = "SimConnect: Connecting...",
-                Location = new Point(20, 30),
-                Size = new Size(520, 25),
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Color.White
-            };
-            grpStatus.Controls.Add(lblSimStatus);
-
-            Label lblCloudStatus = new Label
-            {
-                Name = "lblCloudStatus",
-                Text = "Cloud: Connecting...",
-                Location = new Point(20, 60),
-                Size = new Size(520, 25),
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Color.White
-            };
-            grpStatus.Controls.Add(lblCloudStatus);
-
-            Label lblClients = new Label
-            {
-                Name = "lblClients",
-                Text = "Mobile clients: 0",
-                Location = new Point(20, 90),
-                Size = new Size(520, 25),
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Color.White
-            };
-            grpStatus.Controls.Add(lblClients);
-
-            // Info
-            Label lblInfo = new Label
-            {
-                Text = "📱 Users enter your Unique ID in the mobile app\n" +
-                       "🔒 Share your password or guest password for autopilot access",
-                Location = new Point(20, 440),
-                Size = new Size(560, 50),
-                Font = new Font("Segoe UI", 9),
-                ForeColor = Color.FromArgb(200, 200, 200)
-            };
-            this.Controls.Add(lblInfo);
-
-            updateTimer = new System.Windows.Forms.Timer { Interval = 200 };
-            updateTimer.Tick += UpdateTimer_Tick;
+      }
+      
+      else {
+        // Route all other messages
+        const session = sessions.get(ws.uniqueId);
+        if (!session) return;
+        
+        if (ws.clientType === 'mobile' && session.pcClient) {
+          // Check if command requires control access
+          if (data.type.includes('autopilot') || 
+              data.type === 'pause_toggle' || 
+              data.type === 'save_game' ||
+              data.type === 'toggle_gear' ||
+              data.type === 'toggle_spoilers' ||
+              data.type === 'toggle_parking_brake' ||
+              data.type === 'change_flaps' ||
+              data.type === 'throttle_control') {
+            if (!ws.hasControlAccess) {
+              ws.send(JSON.stringify({ 
+                type: 'control_required',
+                message: 'Enter password to access controls'
+              }));
+              return;
+            }
+          }
+          
+          // Forward to PC
+          if (session.pcClient.readyState === WebSocket.OPEN) {
+            session.pcClient.send(JSON.stringify(data));
+          }
         }
+        else if (ws.clientType === 'pc') {
+          // Broadcast to all mobile clients
+          session.mobileClients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(data));
+            }
+          });
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  });
 
-        private void LoadSettings()
-        {
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(SETTINGS_FILE));
+  ws.on('close', () => {
+    if (ws.uniqueId && sessions.has(ws.uniqueId)) {
+      const session = sessions.get(ws.uniqueId);
+      
+      if (ws.clientType === 'pc') {
+        console.log(`PC disconnected: ${ws.uniqueId}`);
+        session.pcClient = null;
+        
+        // Notify mobile clients
+        session.mobileClients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'pc_offline' }));
+          }
+        });
+      }
+      else if (ws.clientType === 'mobile') {
+        session.mobileClients.delete(ws);
+        console.log(`Mobile disconnected from: ${ws.uniqueId}`);
+      }
+    }
+  });
+});
 
-                if (File.Exists(SETTINGS_FILE))
-                {
-                    string json = File.ReadAllText(SETTINGS_FILE);
-                    dynamic settings = JsonConvert.DeserializeObject(json);
+function getMobileAppHTML() {
+  return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>P3D Remote</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #000000;
+            color: white;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            border-bottom: 2px solid #00c853;
+        }
+        .header h1 { 
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-top: 5px;
+            display: inline-block;
+        }
+        .status.connected { background: #00c853; color: #000; }
+        .status.offline { background: #f44336; color: white; }
+        
+        .login-screen {
+            padding: 20px;
+            max-width: 500px;
+            margin: 40px auto;
+        }
+        .login-card {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+        .login-card h2 { margin-bottom: 20px; color: #00c853; }
+        
+        input {
+            width: 100%;
+            padding: 14px;
+            background: #0d0d0d;
+            border: 2px solid #333;
+            border-radius: 8px;
+            color: white;
+            font-size: 15px;
+            margin: 10px 0;
+        }
+        input::placeholder { color: #666; }
+        input:focus { outline: none; border-color: #00c853; }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 8px 0;
+            transition: all 0.3s;
+        }
+        .btn-primary { background: #00c853; color: #000; }
+        .btn-primary:active { background: #00e676; }
+        .btn-secondary { background: #2d2d2d; color: white; border: 1px solid #444; }
+        .btn-secondary:active { background: #3d3d3d; }
+        .btn-warning { background: #ff9800; color: #000; }
+        .btn-danger { background: #f44336; color: white; }
+        .btn:disabled { background: #333; opacity: 0.5; }
+        .btn.paused { 
+            background: #ff9800; 
+            color: #000;
+            animation: pulse 1.5s infinite; 
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(0.98); }
+        }
+        
+        .tabs {
+            display: flex;
+            background: #0d0d0d;
+            border-bottom: 2px solid #333;
+        }
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-size: 13px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            color: #00c853;
+            background: #1a1a1a;
+            border-bottom: 3px solid #00c853;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 15px;
+        }
+        .tab-content.active { display: block; }
+        
+        .card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .data-item {
+            background: #0d0d0d;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #222;
+        }
+        .data-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .data-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00c853;
+        }
+        
+        #map {
+            height: 400px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+        
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #0d0d0d;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #222;
+        }
+        .control-label { font-size: 14px; color: #ccc; }
+        .toggle-btn {
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        .toggle-btn.on { background: #00c853; color: #000; }
+        .toggle-btn.off { background: #333; color: #888; }
+        
+        .input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .input-group input {
+            flex: 1;
+            margin: 0;
+        }
+        .input-group .btn {
+            width: auto;
+            padding: 10px 20px;
+            margin: 0;
+        }
+        
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .throttle-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .hidden { display: none !important; }
+        
+        .info-box {
+            background: #2d2d2d;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+            color: #ccc;
+            border: 1px solid #444;
+        }
+        
+        h3 {
+            color: #00c853;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class='header'>
+        <h1>Prepar3D Remote</h1>
+        <div id='statusBadge' class='status offline'>Offline</div>
+    </div>
+
+    <div id='loginScreen' class='login-screen'>
+        <div class='login-card'>
+            <h2>Connect to Simulator</h2>
+            <div class='info-box'>
+                Enter your Unique ID from the PC Server
+            </div>
+            <input type='text' id='uniqueId' placeholder='Unique ID' autocapitalize='off'>
+            <button class='btn btn-primary' onclick='connectToSim()'>Connect</button>
+        </div>
+    </div>
+
+    <div id='mainApp' class='hidden'>
+        <div class='tabs'>
+            <button class='tab active' onclick='switchTab(0)'>Flight</button>
+            <button class='tab' onclick='switchTab(1)'>Map</button>
+            <button class='tab' onclick='switchTab(2)'>Autopilot</button>
+        </div>
+
+        <div class='tab-content active'>
+            <div class='card'>
+                <div class='data-label'>Next Waypoint</div>
+                <div class='data-value' style='font-size: 18px;' id='nextWaypoint'>--</div>
+                <div style='margin-top: 8px; color: #888; font-size: 13px;' id='wpDistance'>Distance: --</div>
+                <div style='color: #888; font-size: 13px;' id='wpEte'>ETE: --</div>
+            </div>
+
+            <div class='card'>
+                <div class='data-label'>Total Distance to Destination</div>
+                <div class='data-value'><span id='distance'>--</span> nm</div>
+                <div style='margin-top: 8px; color: #888; font-size: 13px;' id='ete'>Total ETE: --</div>
+            </div>
+
+            <div class='card'>
+                <div class='data-grid'>
+                    <div class='data-item'>
+                        <div class='data-label'>Speed</div>
+                        <div class='data-value' id='speed'>--</div>
+                        <div style='font-size: 11px; color: #888;'>knots</div>
+                    </div>
+                    <div class='data-item'>
+                        <div class='data-label'>Altitude</div>
+                        <div class='data-value' id='altitude'>--</div>
+                        <div style='font-size: 11px; color: #888;'>feet</div>
+                    </div>
+                    <div class='data-item'>
+                        <div class='data-label'>Heading</div>
+                        <div class='data-value' id='heading'>--</div>
+                        <div style='font-size: 11px; color: #888;'>degrees</div>
+                    </div>
+                    <div class='data-item'>
+                        <div class='data-label'>V/S</div>
+                        <div class='data-value' id='vs'>--</div>
+                        <div style='font-size: 11px; color: #888;'>fpm</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class='tab-content'>
+            <div class='card'>
+                <div id='map'></div>
+            </div>
+        </div>
+
+        <div class='tab-content'>
+            <div id='controlLock' class='card'>
+                <div class='info-box'>🔒 Enter password to access controls</div>
+                <input type='password' id='controlPassword' placeholder='Password'>
+                <button class='btn btn-primary' onclick='unlockControls()'>Unlock Controls</button>
+            </div>
+            
+            <div id='controlPanel' class='hidden'>
+                <div class='card'>
+                    <div class='btn-group'>
+                        <button class='btn btn-secondary' id='btnPause' onclick='togglePause()'>⏸️ Pause</button>
+                        <button class='btn btn-primary' onclick='saveGame()'>💾 Save Flight</button>
+                    </div>
+                </div>
+                
+                <div class='card'>
+                    <h3>Autopilot</h3>
                     
-                    uniqueId = settings.uniqueId ?? "";
-                    myPassword = settings.password ?? "admin123";
-                    guestPassword = settings.guestPassword ?? "";
-                }
-
-                if (string.IsNullOrEmpty(uniqueId))
-                    uniqueId = Environment.UserName + "-" + new Random().Next(1000, 9999);
-
-                if (string.IsNullOrEmpty(guestPassword))
-                    RegenerateGuestPassword();
-            }
-            catch
-            {
-                uniqueId = Environment.UserName + "-" + new Random().Next(1000, 9999);
-                RegenerateGuestPassword();
-            }
-        }
-
-        private void SaveSettings()
-        {
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(SETTINGS_FILE));
+                    <div class='control-row'>
+                        <span class='control-label'>Master</span>
+                        <button class='toggle-btn off' id='apMaster' onclick='toggleAP("master")'>OFF</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Altitude Hold</span>
+                        <button class='toggle-btn off' id='apAlt' onclick='toggleAP("altitude")'>OFF</button>
+                    </div>
+                    <div class='input-group'>
+                        <input type='number' id='targetAlt' placeholder='Target Altitude (ft)'>
+                        <button class='btn btn-primary' onclick='setAltitude()'>Set</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>V/S Hold</span>
+                        <button class='toggle-btn off' id='apVS' onclick='toggleAP("vs")'>OFF</button>
+                    </div>
+                    <div class='input-group'>
+                        <input type='number' id='targetVS' placeholder='Vertical Speed (fpm)'>
+                        <button class='btn btn-primary' onclick='setVS()'>Set</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Airspeed Hold</span>
+                        <button class='toggle-btn off' id='apSpeed' onclick='toggleAP("speed")'>OFF</button>
+                    </div>
+                    <div class='input-group'>
+                        <input type='number' id='targetSpeed' placeholder='Target Speed (kts)'>
+                        <button class='btn btn-primary' onclick='setSpeed()'>Set</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Heading Hold</span>
+                        <button class='toggle-btn off' id='apHdg' onclick='toggleAP("heading")'>OFF</button>
+                    </div>
+                    <div class='input-group'>
+                        <input type='number' id='targetHdg' placeholder='Heading (deg)'>
+                        <button class='btn btn-primary' onclick='setHeading()'>Set</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>NAV/GPS Mode</span>
+                        <button class='toggle-btn off' id='navMode' onclick='toggleNavMode()'>GPS</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>LOC Hold</span>
+                        <button class='toggle-btn off' id='apNav' onclick='toggleAP("nav")'>OFF</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Approach</span>
+                        <button class='toggle-btn off' id='apApp' onclick='toggleAP("approach")'>OFF</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>ILS/Backcourse</span>
+                        <button class='toggle-btn off' id='apBackcourse' onclick='toggleAP("backcourse")'>OFF</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Auto Throttle</span>
+                        <button class='toggle-btn off' id='autoThrottle' onclick='toggleAP("throttle")'>OFF</button>
+                    </div>
+                </div>
                 
-                var settings = new
-                {
-                    uniqueId = uniqueId,
-                    password = myPassword,
-                    guestPassword = guestPassword
-                };
-                
-                File.WriteAllText(SETTINGS_FILE, JsonConvert.SerializeObject(settings, Formatting.Indented));
-            }
-            catch { }
-        }
+                <div class='card'>
+                    <h3>Aircraft</h3>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Landing Gear</span>
+                        <button class='toggle-btn off' id='gear' onclick='toggleGear()'>UP</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Flaps</span>
+                        <div>
+                            <button class='btn btn-secondary' style='width:auto; padding:8px 16px; margin:0 5px;' onclick='changeFlaps(-1)'>-</button>
+                            <span id='flapsPos' style='display:inline-block; width:60px; text-align:center;'>0%</span>
+                            <button class='btn btn-secondary' style='width:auto; padding:8px 16px; margin:0 5px;' onclick='changeFlaps(1)'>+</button>
+                        </div>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Speedbrakes</span>
+                        <button class='toggle-btn off' id='spoilers' onclick='toggleSpoilers()'>OFF</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Parking Brake</span>
+                        <button class='toggle-btn off' id='parkingBrake' onclick='toggleParkingBrake()'>OFF</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        private void RegenerateGuestPassword()
-        {
-            guestPassword = new Random().Next(100000, 999999).ToString();
-            if (lblGuestPassword != null)
-                lblGuestPassword.Text = $"Guest Password: {guestPassword}";
-            SaveSettings();
+    <script>
+        let ws = null;
+        let map = null;
+        let aircraftMarker = null;
+        let uniqueId = null;
+        let hasControl = false;
+        let isPaused = false;
 
-            // Send updated passwords to cloud
-            if (ws != null && ws.ReadyState == WebSocketState.Open)
-            {
-                ws.Send(JsonConvert.SerializeObject(new
-                {
-                    type = "register_pc",
-                    uniqueId = uniqueId,
-                    password = myPassword,
-                    guestPassword = guestPassword
-                }));
-            }
-        }
-
-        private void ConnectToCloud()
-        {
-            reconnectTimer?.Dispose();
-
-            try
-            {
-                if (ws != null)
-                {
-                    try { ws.Close(); } catch { }
-                    ws = null;
-                }
-
-                UpdateLabel("lblCloudStatus", "Cloud: Connecting...", Color.Orange);
-
-                ws = new WebSocket(CLOUD_URL);
-                ws.SslConfiguration.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12;
-                ws.SslConfiguration.ServerCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
-
-                ws.OnOpen += (sender, e) =>
-                {
-                    UpdateLabel("lblCloudStatus", "Cloud: Connected ✓", Color.Lime);
-
-                    ws.Send(JsonConvert.SerializeObject(new
-                    {
-                        type = "register_pc",
-                        uniqueId = uniqueId,
-                        password = myPassword,
-                        guestPassword = guestPassword
-                    }));
-                };
-
-                ws.OnMessage += (sender, e) =>
-                {
-                    try
-                    {
-                        dynamic data = JsonConvert.DeserializeObject(e.Data);
-                        HandleCloudMessage(data);
-                    }
-                    catch { }
-                };
-
-                ws.OnClose += (sender, e) =>
-                {
-                    UpdateLabel("lblCloudStatus", "Cloud: Disconnected", Color.Red);
-                    reconnectTimer = new System.Threading.Timer((state) => ConnectToCloud(), null, 5000, System.Threading.Timeout.Infinite);
-                };
-
-                ws.OnError += (sender, e) =>
-                {
-                    Console.WriteLine($"WS Error: {e.Message}");
-                };
-
-                ws.ConnectAsync();
-            }
-            catch (Exception ex)
-            {
-                UpdateLabel("lblCloudStatus", $"Cloud: Error - {ex.Message}", Color.Red);
+        function switchTab(index) {
+            document.querySelectorAll('.tab').forEach((tab, i) => {
+                tab.classList.toggle('active', i === index);
+            });
+            document.querySelectorAll('.tab-content').forEach((content, i) => {
+                content.classList.toggle('active', i === index);
+            });
+            
+            if (index === 1 && !map) {
+                setTimeout(initMap, 100);
             }
         }
 
-        private void HandleCloudMessage(dynamic data)
-        {
-            string type = data.type.ToString();
-
-            if (simconnect == null || !isConnected) return;
-
-            try
-            {
-                switch (type)
-                {
-                    case "pause_toggle":
-                        simconnect.TransmitClientEvent(0, EVENTS.PAUSE, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                        break;
-
-                    case "save_game":
-                        string filename = $"P3D_Flight_{DateTime.Now:yyyyMMdd_HHmmss}";
-                        try
-                        {
-                            simconnect.FlightSave(filename, "", "", 0);
-                        }
-                        catch
-                        {
-                            // Fallback to SITUATION_SAVE event
-                            simconnect.TransmitClientEvent(0, EVENTS.SAVE, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                        }
-                        break;
-
-                    case "autopilot_toggle":
-                        string system = data.system.ToString();
-                        EVENTS evt = EVENTS.AP_MASTER;
-                        switch (system)
-                        {
-                            case "master": evt = EVENTS.AP_MASTER; break;
-                            case "altitude": evt = EVENTS.AP_ALT_HOLD; break;
-                            case "heading": evt = EVENTS.AP_HDG_HOLD; break;
-                            case "vs": evt = EVENTS.AP_VS_HOLD; break;
-                            case "speed": evt = EVENTS.AP_AIRSPEED_HOLD; break;
-                            case "approach": evt = EVENTS.AP_APR_HOLD; break;
-                            case "nav": evt = EVENTS.AP_NAV1_HOLD; break;
-                            case "backcourse": evt = EVENTS.AP_BC_HOLD; break;
-                            case "throttle": evt = EVENTS.AUTO_THROTTLE_ARM; break;
-                        }
-                        simconnect.TransmitClientEvent(0, evt, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                        break;
-
-                    case "autopilot_set":
-                        string param = data.param.ToString();
-                        int value = (int)data.value;
-                        EVENTS setEvt = EVENTS.AP_ALT_SET;
-                        switch (param)
-                        {
-                            case "altitude": setEvt = EVENTS.AP_ALT_SET; break;
-                            case "heading": setEvt = EVENTS.AP_HDG_SET; break;
-                            case "vs": setEvt = EVENTS.AP_VS_SET; break;
-                            case "speed": setEvt = EVENTS.AP_AIRSPEED_SET; break;
-                        }
-                        simconnect.TransmitClientEvent(0, setEvt, (uint)value, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                        break;
-
-                    case "toggle_nav_mode":
-                        simconnect.TransmitClientEvent(0, EVENTS.TOGGLE_GPS_DRIVES_NAV1, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                        break;
-
-                    case "toggle_gear":
-                        simconnect.TransmitClientEvent(0, EVENTS.GEAR_TOGGLE, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                        break;
-
-                    case "toggle_spoilers":
-                        simconnect.TransmitClientEvent(0, EVENTS.SPOILERS_TOGGLE, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                        break;
-
-                    case "toggle_parking_brake":
-                        simconnect.TransmitClientEvent(0, EVENTS.PARKING_BRAKES, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                        break;
-
-                    case "change_flaps":
-                        int direction = (int)data.direction;
-                        simconnect.TransmitClientEvent(0, direction > 0 ? EVENTS.FLAPS_INCR : EVENTS.FLAPS_DECR, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                        break;
-
-                    case "throttle_control":
-                        string throttleCmd = data.command.ToString();
-                        switch (throttleCmd)
-                        {
-                            case "full":
-                                simconnect.TransmitClientEvent(0, EVENTS.THROTTLE_FULL, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                                break;
-                            case "cut":
-                                simconnect.TransmitClientEvent(0, EVENTS.THROTTLE_CUT, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                                break;
-                            case "increase":
-                                simconnect.TransmitClientEvent(0, EVENTS.THROTTLE_INCR, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                                break;
-                            case "decrease":
-                                simconnect.TransmitClientEvent(0, EVENTS.THROTTLE_DECR, 0, GROUPID.GROUP0, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
-                                break;
-                        }
-                        break;
-                }
-            }
-            catch { }
-        }
-
-        private void InitializeSimConnect()
-        {
-            try
-            {
-                simconnect = new SimConnect("P3D Remote", this.Handle, WM_USER_SIMCONNECT, null, 0);
-
-                // Flight data
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GROUND VELOCITY", "knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "VERTICAL SPEED", "feet per minute", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS WP NEXT ID", null, SIMCONNECT_DATATYPE.STRING256, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS WP DISTANCE", "meters", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS WP ETE", "seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS TOTAL DISTANCE", "nautical miles", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS ETE", "seconds", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS IS ACTIVE FLIGHT PLAN", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS IS ACTIVE WAY POINT", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS FLIGHT PLAN WP COUNT", "number", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-
-                // Autopilot
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT MASTER", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT ALTITUDE LOCK", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT HEADING LOCK", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT VERTICAL HOLD", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT AIRSPEED HOLD", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT APPROACH HOLD", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT NAV1 LOCK", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT BACKCOURSE HOLD", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT ALTITUDE LOCK VAR", "feet", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT HEADING LOCK DIR", "degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT VERTICAL HOLD VAR", "feet per minute", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT AIRSPEED HOLD VAR", "knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "AUTOPILOT THROTTLE ARM", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-
-                // Aircraft
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GEAR POSITION", "percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "FLAPS HANDLE PERCENT", "percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GPS DRIVES NAV1", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "SPOILERS HANDLE POSITION", "percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "GENERAL ENG THROTTLE LEVER POSITION:1", "percent", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "BRAKE PARKING POSITION", "position", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.PlaneData, "SIM ON GROUND", "bool", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-
-                simconnect.RegisterDataDefineStruct<PlaneData>(DEFINITIONS.PlaneData);
-
-                // AI Data
-                simconnect.AddToDataDefinition(DEFINITIONS.AIData, "PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.AIData, "PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.AIData, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.AIData, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.AIData, "GROUND VELOCITY", "knots", SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-                simconnect.AddToDataDefinition(DEFINITIONS.AIData, "ATC ID", null, SIMCONNECT_DATATYPE.STRING256, 0.0f, SimConnect.SIMCONNECT_UNUSED);
-
-                simconnect.RegisterDataDefineStruct<AIData>(DEFINITIONS.AIData);
-
-                // Events
-                simconnect.MapClientEventToSimEvent(EVENTS.PAUSE, "PAUSE_TOGGLE");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_MASTER, "AP_MASTER");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_ALT_HOLD, "AP_ALT_HOLD");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_HDG_HOLD, "AP_HDG_HOLD");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_VS_HOLD, "AP_VS_HOLD");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_AIRSPEED_HOLD, "AP_AIRSPEED_HOLD");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_APR_HOLD, "AP_APR_HOLD");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_NAV1_HOLD, "AP_NAV1_HOLD");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_BC_HOLD, "AP_BC_HOLD");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_ALT_SET, "AP_ALT_VAR_SET_ENGLISH");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_HDG_SET, "HEADING_BUG_SET");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_VS_SET, "AP_VS_VAR_SET_ENGLISH");
-                simconnect.MapClientEventToSimEvent(EVENTS.AP_AIRSPEED_SET, "AP_SPD_VAR_SET");
-                simconnect.MapClientEventToSimEvent(EVENTS.GEAR_TOGGLE, "GEAR_TOGGLE");
-                simconnect.MapClientEventToSimEvent(EVENTS.FLAPS_INCR, "FLAPS_INCR");
-                simconnect.MapClientEventToSimEvent(EVENTS.FLAPS_DECR, "FLAPS_DECR");
-                simconnect.MapClientEventToSimEvent(EVENTS.SPOILERS_TOGGLE, "SPOILERS_TOGGLE");
-                simconnect.MapClientEventToSimEvent(EVENTS.TOGGLE_GPS_DRIVES_NAV1, "TOGGLE_GPS_DRIVES_NAV1");
-                simconnect.MapClientEventToSimEvent(EVENTS.AUTO_THROTTLE_ARM, "AUTO_THROTTLE_ARM");
-                simconnect.MapClientEventToSimEvent(EVENTS.THROTTLE_FULL, "THROTTLE_FULL");
-                simconnect.MapClientEventToSimEvent(EVENTS.THROTTLE_CUT, "THROTTLE_CUT");
-                simconnect.MapClientEventToSimEvent(EVENTS.THROTTLE_INCR, "THROTTLE_INCR");
-                simconnect.MapClientEventToSimEvent(EVENTS.THROTTLE_DECR, "THROTTLE_DECR");
-                simconnect.MapClientEventToSimEvent(EVENTS.PARKING_BRAKES, "PARKING_BRAKES");
-
-                simconnect.OnRecvSimobjectDataBytype += Simconnect_OnRecvSimobjectDataBytype;
-                simconnect.OnRecvOpen += (s, d) => Console.WriteLine("SimConnect opened");
-
-                isConnected = true;
-                UpdateLabel("lblSimStatus", "SimConnect: Connected ✓", Color.Lime);
-                updateTimer.Enabled = true;
-            }
-            catch (Exception ex)
-            {
-                UpdateLabel("lblSimStatus", $"SimConnect: Failed - {ex.Message}", Color.Red);
-            }
-        }
-
-        private void Simconnect_OnRecvSimobjectDataBytype(SimConnect sender, SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE data)
-        {
-            if (data.dwRequestID == (uint)DATA_REQUESTS.REQUEST_1)
-            {
-                currentPlaneData = (PlaneData)data.dwData[0];
-                BroadcastData();
-            }
-        }
-
-        private void UpdateTimer_Tick(object sender, EventArgs e)
-        {
-            if (isConnected && simconnect != null)
-            {
-                try
-                {
-                    simconnect.RequestDataOnSimObjectType(DATA_REQUESTS.REQUEST_1, DEFINITIONS.PlaneData, 0, SIMCONNECT_SIMOBJECT_TYPE.USER);
-                }
-                catch { }
-            }
-        }
-
-        private void BroadcastData()
-        {
-            if (ws == null || ws.ReadyState != WebSocketState.Open) return;
-
-            var flightData = new
-            {
-                type = "flight_data",
-                data = new
-                {
-                    groundSpeed = currentPlaneData.groundSpeed,
-                    altitude = currentPlaneData.altitude,
-                    heading = currentPlaneData.heading,
-                    latitude = currentPlaneData.latitude,
-                    longitude = currentPlaneData.longitude,
-                    verticalSpeed = currentPlaneData.verticalSpeed,
-                    nextWaypoint = currentPlaneData.gpsWpNextId,
-                    distanceToWaypoint = currentPlaneData.gpsWpDistance / 1852.0,
-                    totalDistance = currentPlaneData.gpsTotalDistance,
-                    ete = currentPlaneData.gpsEte,
-                    waypointEte = currentPlaneData.gpsWpEte,
-                    isPaused = currentPlaneData.pauseState > 0.5,
-                    flightPlanActive = currentPlaneData.gpsIsActiveFlightPlan > 0.5,
-                    waypointCount = (int)currentPlaneData.gpsFlightPlanWpCount
-                }
-            };
-
-            var autopilotData = new
-            {
-                type = "autopilot_state",
-                data = new
-                {
-                    master = currentPlaneData.autopilotMaster > 0.5,
-                    altitude = currentPlaneData.autopilotAltitude > 0.5,
-                    heading = currentPlaneData.autopilotHeading > 0.5,
-                    vs = currentPlaneData.autopilotVS > 0.5,
-                    speed = currentPlaneData.autopilotAirspeed > 0.5,
-                    approach = currentPlaneData.autopilotApproach > 0.5,
-                    nav = currentPlaneData.autopilotNav1Lock > 0.5,
-                    backcourse = currentPlaneData.autopilotBackcourse > 0.5,
-                    throttle = currentPlaneData.autoThrottle > 0.5,
-                    gear = currentPlaneData.gearPosition > 50,
-                    flaps = currentPlaneData.flapsPosition,
-                    navMode = currentPlaneData.gpsNavMode > 0.5,
-                    spoilers = currentPlaneData.spoilersPosition,
-                    throttlePercent = currentPlaneData.throttlePercent,
-                    parkingBrake = currentPlaneData.parkingBrake > 0.5,
-                    targetAltitude = (int)currentPlaneData.autopilotAltitudeVar,
-                    targetHeading = (int)currentPlaneData.autopilotHeadingVar,
-                    targetVS = (int)currentPlaneData.autopilotVSVar,
-                    targetSpeed = (int)currentPlaneData.autopilotAirspeedVar
-                }
-            };
-
-            try
-            {
-                ws.Send(JsonConvert.SerializeObject(flightData));
-                ws.Send(JsonConvert.SerializeObject(autopilotData));
-            }
-            catch { }
-        }
-
-        private void UpdateLabel(string name, string text, Color color)
-        {
-            if (this.InvokeRequired)
-            {
-                this.Invoke(new Action(() => UpdateLabel(name, text, color)));
+        function connectToSim() {
+            uniqueId = document.getElementById('uniqueId').value.trim();
+            if (!uniqueId) {
+                alert('Please enter your Unique ID');
                 return;
             }
+            
+            localStorage.setItem('p3d_unique_id', uniqueId);
+            
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(protocol + '//' + window.location.host);
+            
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ 
+                    type: 'connect_mobile',
+                    uniqueId: uniqueId
+                }));
+            };
 
-            Control[] controls = this.Controls.Find(name, true);
-            if (controls.Length > 0 && controls[0] is Label)
-            {
-                Label lbl = (Label)controls[0];
-                lbl.Text = text;
-                lbl.ForeColor = color;
-            }
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+
+            ws.onclose = () => {
+                updateStatus('offline');
+                setTimeout(connectToSim, 3000);
+            };
         }
 
-        protected override void WndProc(ref Message m)
-        {
-            if (m.Msg == WM_USER_SIMCONNECT)
-            {
-                if (simconnect != null)
-                {
-                    try
-                    {
-                        simconnect.ReceiveMessage();
+        function handleMessage(data) {
+            switch(data.type) {
+                case 'connected':
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    updateStatus(data.pcOnline ? 'connected' : 'offline');
+                    break;
+                    
+                case 'error':
+                    alert(data.message);
+                    break;
+                    
+                case 'control_granted':
+                    hasControl = true;
+                    document.getElementById('controlLock').classList.add('hidden');
+                    document.getElementById('controlPanel').classList.remove('hidden');
+                    break;
+                    
+                case 'auth_failed':
+                    alert('Wrong password!');
+                    break;
+                    
+                case 'control_required':
+                    if (document.getElementById('controlLock').classList.contains('hidden')) {
+                        alert(data.message);
                     }
-                    catch { }
-                }
-            }
-            else
-            {
-                base.WndProc(ref m);
+                    break;
+                    
+                case 'flight_data':
+                    updateFlightData(data.data);
+                    break;
+                    
+                case 'autopilot_state':
+                    updateAutopilotUI(data.data);
+                    break;
+                    
+                case 'pc_offline':
+                    updateStatus('offline');
+                    break;
             }
         }
 
-        protected override void OnFormClosing(FormClosingEventArgs e)
-        {
-            if (simconnect != null)
-            {
-                simconnect.Dispose();
-            }
-            if (ws != null)
-            {
-                ws.Close();
-            }
-            reconnectTimer?.Dispose();
-            base.OnFormClosing(e);
+        function updateStatus(status) {
+            const badge = document.getElementById('statusBadge');
+            badge.className = 'status ' + status;
+            badge.textContent = status === 'connected' ? 'Connected' : 'Offline';
         }
 
-        [STAThread]
-        static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+        function updateFlightData(data) {
+            document.getElementById('speed').textContent = Math.round(data.groundSpeed);
+            document.getElementById('altitude').textContent = Math.round(data.altitude).toLocaleString();
+            document.getElementById('heading').textContent = Math.round(data.heading) + '°';
+            document.getElementById('vs').textContent = Math.round(data.verticalSpeed);
+            
+            // Next waypoint info
+            document.getElementById('nextWaypoint').textContent = data.nextWaypoint || 'No Active Waypoint';
+            document.getElementById('wpDistance').textContent = 'Distance: ' + (data.distanceToWaypoint ? data.distanceToWaypoint.toFixed(1) + ' nm' : '--');
+            
+            if (data.waypointEte && data.waypointEte > 0) {
+                const wpMinutes = Math.floor(data.waypointEte / 60);
+                const wpSeconds = Math.floor(data.waypointEte % 60);
+                document.getElementById('wpEte').textContent = 'ETE: ' + wpMinutes + 'm ' + wpSeconds + 's';
+            } else {
+                document.getElementById('wpEte').textContent = 'ETE: --';
+            }
+            
+            // Total distance to destination
+            if (data.totalDistance && data.totalDistance > 0) {
+                document.getElementById('distance').textContent = data.totalDistance.toFixed(1);
+            } else {
+                document.getElementById('distance').textContent = '--';
+            }
+            
+            // Total ETE
+            if (data.ete && data.ete > 0) {
+                const hours = Math.floor(data.ete / 3600);
+                const minutes = Math.floor((data.ete % 3600) / 60);
+                document.getElementById('ete').textContent = 'Total ETE: ' + (hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm');
+            } else {
+                document.getElementById('ete').textContent = 'Total ETE: --';
+            }
+
+            isPaused = data.isPaused;
+            const btnPause = document.getElementById('btnPause');
+            if (data.isPaused) {
+                btnPause.textContent = '▶️ PAUSED - Resume';
+                btnPause.className = 'btn btn-warning paused';
+            } else {
+                btnPause.textContent = '⏸️ Pause';
+                btnPause.className = 'btn btn-secondary';
+            }
+
+            if (map && data.latitude && data.longitude) {
+                updateMap(data.latitude, data.longitude, data.heading);
+            }
         }
-    }
+
+        function updateAutopilotUI(data) {
+            updateToggle('apMaster', data.master);
+            updateToggle('apAlt', data.altitude);
+            updateToggle('apHdg', data.heading);
+            updateToggle('apVS', data.vs);
+            updateToggle('apSpeed', data.speed);
+            updateToggle('apApp', data.approach);
+            updateToggle('apNav', data.nav);
+            updateToggle('apBackcourse', data.backcourse);
+            updateToggle('autoThrottle', data.throttle);
+            updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
+            updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'SET' : 'OFF');
+            
+            document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
+            
+            // Spoilers
+            const spoilersBtn = document.getElementById('spoilers');
+            const spoilersActive = data.spoilers > 10;
+            spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
+            spoilersBtn.textContent = spoilersActive ? 'DEPLOYED' : 'RETRACTED';
+            
+            // NAV/GPS toggle - FIXED: inverted the logic
+            const navBtn = document.getElementById('navMode');
+            navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
+            navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
+        }
+
+        function updateToggle(id, state, text) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.className = 'toggle-btn ' + (state ? 'on' : 'off');
+            btn.textContent = text || (state ? 'ON' : 'OFF');
+        }
+
+        function initMap() {
+            map = L.map('map').setView([0, 0], 8);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            
+            aircraftMarker = L.marker([0, 0], {
+                icon: createPlaneIcon(0)
+            }).addTo(map);
+        }
+
+        function createPlaneIcon(heading) {
+            return L.divIcon({
+                html: '<div style="font-size:32px;transform:rotate(' + heading + 'deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.8));">✈️</div>',
+                className: '',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+        }
+
+        function updateMap(lat, lon, heading) {
+            if (!map) return;
+            
+            const icon = L.divIcon({
+                html: '<div style="font-size:32px;transform:rotate(' + heading + 'deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.8));">✈️</div>',
+                className: '',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+            
+            aircraftMarker.setLatLng([lat, lon]);
+            aircraftMarker.setIcon(icon);
+            map.setView([lat, lon], map.getZoom());
+        }
+
+        function unlockControls() {
+            const password = document.getElementById('controlPassword').value;
+            ws.send(JSON.stringify({ type: 'request_control', password }));
+        }
+
+        function togglePause() {
+            ws.send(JSON.stringify({ type: 'pause_toggle' }));
+        }
+
+        function saveGame() {
+            ws.send(JSON.stringify({ type: 'save_game' }));
+            alert('Flight saved!');
+        }
+
+        function toggleAP(system) {
+            ws.send(JSON.stringify({ type: 'autopilot_toggle', system }));
+        }
+
+        function setAltitude() {
+            const alt = parseInt(document.getElementById('targetAlt').value);
+            if (!isNaN(alt)) {
+                ws.send(JSON.stringify({ type: 'autopilot_set', param: 'altitude', value: alt }));
+                document.getElementById('targetAlt').value = '';
+            }
+        }
+
+        function setHeading() {
+            const hdg = parseInt(document.getElementById('targetHdg').value);
+            if (!isNaN(hdg)) {
+                ws.send(JSON.stringify({ type: 'autopilot_set', param: 'heading', value: hdg }));
+                document.getElementById('targetHdg').value = '';
+            }
+        }
+
+        function setVS() {
+            const vs = parseInt(document.getElementById('targetVS').value);
+            if (!isNaN(vs)) {
+                ws.send(JSON.stringify({ type: 'autopilot_set', param: 'vs', value: vs }));
+                document.getElementById('targetVS').value = '';
+            }
+        }
+
+        function setSpeed() {
+            const speed = parseInt(document.getElementById('targetSpeed').value);
+            if (!isNaN(speed)) {
+                ws.send(JSON.stringify({ type: 'autopilot_set', param: 'speed', value: speed }));
+                document.getElementById('targetSpeed').value = '';
+            }
+        }
+
+        function toggleNavMode() {
+            ws.send(JSON.stringify({ type: 'toggle_nav_mode' }));
+        }
+
+        function toggleGear() {
+            ws.send(JSON.stringify({ type: 'toggle_gear' }));
+        }
+
+        function toggleSpoilers() {
+            ws.send(JSON.stringify({ type: 'toggle_spoilers' }));
+        }
+
+        function toggleParkingBrake() {
+            ws.send(JSON.stringify({ type: 'toggle_parking_brake' }));
+        }
+
+        function changeFlaps(direction) {
+            ws.send(JSON.stringify({ type: 'change_flaps', direction }));
+        }
+
+        // Load saved ID
+        window.onload = () => {
+            const savedId = localStorage.getItem('p3d_unique_id');
+            if (savedId) {
+                document.getElementById('uniqueId').value = savedId;
+            }
+        };
+    </script>
+</body>
+</html>`;
 }
+
+server.listen(PORT, () => {
+  console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
+});
