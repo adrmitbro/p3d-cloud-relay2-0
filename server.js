@@ -1,7 +1,10 @@
-// P3D Remote Cloud Relay - Enhanced Edition
+// P3D Remote Cloud Relay - Simple Edition
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
@@ -9,170 +12,221 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
 
+// Create app data directory for storing credentials
+const appDataDir = path.join(os.homedir(), 'AppData', 'Roaming', 'P3DRemote');
+if (!fs.existsSync(appDataDir)) {
+    fs.mkdirSync(appDataDir, { recursive: true });
+}
+
 // Simple session storage: uniqueId -> { pcClient, mobileClients: Set(), password, guestPassword }
 const sessions = new Map();
+
+// Load saved sessions from file
+const sessionsFile = path.join(appDataDir, 'sessions.json');
+if (fs.existsSync(sessionsFile)) {
+    try {
+        const savedSessions = JSON.parse(fs.readFileSync(sessionsFile, 'utf8'));
+        savedSessions.forEach(session => {
+            sessions.set(session.uniqueId, {
+                pcClient: null,
+                mobileClients: new Set(),
+                password: session.password,
+                guestPassword: session.guestPassword
+            });
+        });
+        console.log(`Loaded ${savedSessions.length} saved sessions`);
+    } catch (error) {
+        console.error('Error loading sessions:', error);
+    }
+}
 
 app.use(express.static('public'));
 
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok',
-    activeSessions: sessions.size
-  });
+    res.json({ 
+        status: 'ok',
+        activeSessions: sessions.size
+    });
 });
 
 app.get('/', (req, res) => {
-  res.send(getMobileAppHTML());
+    res.send(getMobileAppHTML());
 });
 
 wss.on('connection', (ws, req) => {
-  console.log('New connection');
-  
-  ws.on('message', (message) => {
-    try {
-      const data = JSON.parse(message);
-      
-      if (data.type === 'register_pc') {
-        // PC registering with unique ID
-        const uniqueId = data.uniqueId;
-        const password = data.password;
-        const guestPassword = data.guestPassword;
-        
-        ws.uniqueId = uniqueId;
-        ws.clientType = 'pc';
-        
-        if (!sessions.has(uniqueId)) {
-          sessions.set(uniqueId, {
-            pcClient: ws,
-            mobileClients: new Set(),
-            password: password,
-            guestPassword: guestPassword
-          });
-        } else {
-          const session = sessions.get(uniqueId);
-          session.pcClient = ws;
-          session.password = password;
-          session.guestPassword = guestPassword;
-        }
-        
-        ws.send(JSON.stringify({ type: 'registered', uniqueId }));
-        console.log(`PC registered: ${uniqueId}`);
-      }
-      
-      else if (data.type === 'connect_mobile') {
-        // Mobile connecting with unique ID
-        const uniqueId = data.uniqueId;
-        
-        if (!sessions.has(uniqueId)) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Invalid ID' }));
-          return;
-        }
-        
-        const session = sessions.get(uniqueId);
-        ws.uniqueId = uniqueId;
-        ws.clientType = 'mobile';
-        ws.hasControlAccess = false;
-        
-        session.mobileClients.add(ws);
-        
-        ws.send(JSON.stringify({ 
-          type: 'connected',
-          pcOnline: !!session.pcClient
-        }));
-        
-        console.log(`Mobile connected to: ${uniqueId}`);
-      }
-      
-      else if (data.type === 'request_control') {
-        // Mobile requesting control access
-        const password = data.password;
-        const session = sessions.get(ws.uniqueId);
-        
-        if (!session) {
-          ws.send(JSON.stringify({ type: 'auth_failed' }));
-          return;
-        }
-        
-        if (password === session.password || password === session.guestPassword) {
-          ws.hasControlAccess = true;
-          ws.send(JSON.stringify({ type: 'control_granted' }));
-        } else {
-          ws.send(JSON.stringify({ type: 'auth_failed' }));
-        }
-      }
-      
-      else {
-        // Route all other messages
-        const session = sessions.get(ws.uniqueId);
-        if (!session) return;
-        
-        if (ws.clientType === 'mobile' && session.pcClient) {
-          // Check if command requires control access
-          if (data.type.includes('autopilot') || 
-              data.type === 'pause_toggle' || 
-              data.type === 'save_game' ||
-              data.type === 'toggle_gear' ||
-              data.type === 'change_flaps' ||
-              data.type === 'toggle_nav_mode' ||
-              data.type === 'toggle_speedbrake' ||
-              data.type === 'toggle_parking_brake' ||
-              data.type === 'set_throttle' ||
-              data.type === 'engine_start' ||
-              data.type === 'engine_stop') {
-            if (!ws.hasControlAccess) {
-              ws.send(JSON.stringify({ 
-                type: 'control_required',
-                message: 'Enter password to access controls'
-              }));
-              return;
+    console.log('New connection');
+    
+    ws.on('message', (message) => {
+        try {
+            const data = JSON.parse(message);
+            
+            if (data.type === 'register_pc') {
+                // PC registering with unique ID
+                const uniqueId = data.uniqueId;
+                const password = data.password;
+                const guestPassword = data.guestPassword;
+                
+                ws.uniqueId = uniqueId;
+                ws.clientType = 'pc';
+                
+                if (!sessions.has(uniqueId)) {
+                    sessions.set(uniqueId, {
+                        pcClient: ws,
+                        mobileClients: new Set(),
+                        password: password,
+                        guestPassword: guestPassword
+                    });
+                } else {
+                    const session = sessions.get(uniqueId);
+                    session.pcClient = ws;
+                    session.password = password;
+                    session.guestPassword = guestPassword;
+                }
+                
+                // Save sessions to file
+                saveSessions();
+                
+                ws.send(JSON.stringify({ type: 'registered', uniqueId }));
+                console.log(`PC registered: ${uniqueId}`);
             }
-          }
-          
-          // Forward to PC
-          if (session.pcClient.readyState === WebSocket.OPEN) {
-            session.pcClient.send(JSON.stringify(data));
-          }
-        }
-        else if (ws.clientType === 'pc') {
-          // Broadcast to all mobile clients
-          session.mobileClients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify(data));
+            
+            else if (data.type === 'connect_mobile') {
+                // Mobile connecting with unique ID
+                const uniqueId = data.uniqueId;
+                
+                if (!sessions.has(uniqueId)) {
+                    ws.send(JSON.stringify({ type: 'error', message: 'Invalid ID' }));
+                    return;
+                }
+                
+                const session = sessions.get(uniqueId);
+                ws.uniqueId = uniqueId;
+                ws.clientType = 'mobile';
+                ws.hasControlAccess = false;
+                
+                session.mobileClients.add(ws);
+                
+                ws.send(JSON.stringify({ 
+                    type: 'connected',
+                    pcOnline: !!session.pcClient
+                }));
+                
+                console.log(`Mobile connected to: ${uniqueId}`);
             }
-          });
+            
+            else if (data.type === 'request_control') {
+                // Mobile requesting control access
+                const password = data.password;
+                const session = sessions.get(ws.uniqueId);
+                
+                if (!session) {
+                    ws.send(JSON.stringify({ type: 'auth_failed' }));
+                    return;
+                }
+                
+                if (password === session.password || password === session.guestPassword) {
+                    ws.hasControlAccess = true;
+                    ws.send(JSON.stringify({ type: 'control_granted' }));
+                } else {
+                    ws.send(JSON.stringify({ type: 'auth_failed' }));
+                }
+            }
+            
+            else if (data.type === 'save_game_with_title') {
+                // PC handling save with title
+                const session = sessions.get(ws.uniqueId);
+                if (session && session.pcClient && session.pcClient.readyState === WebSocket.OPEN) {
+                    session.pcClient.send(JSON.stringify({
+                        type: 'save_game_with_title',
+                        title: data.title
+                    }));
+                }
+            }
+            
+            else {
+                // Route all other messages
+                const session = sessions.get(ws.uniqueId);
+                if (!session) return;
+                
+                if (ws.clientType === 'mobile' && session.pcClient) {
+                    // Check if command requires control access
+                    if (data.type.includes('autopilot') || 
+                        data.type === 'pause_toggle' || 
+                        data.type === 'save_game' ||
+                        data.type.includes('engine') ||
+                        data.type === 'toggle_speedbrake' ||
+                        data.type === 'toggle_parking_brake') {
+                        if (!ws.hasControlAccess) {
+                            ws.send(JSON.stringify({ 
+                                type: 'control_required',
+                                message: 'Enter password to access controls'
+                            }));
+                            return;
+                        }
+                    }
+                    
+                    // Forward to PC
+                    if (session.pcClient.readyState === WebSocket.OPEN) {
+                        session.pcClient.send(JSON.stringify(data));
+                    }
+                }
+                else if (ws.clientType === 'pc') {
+                    // Broadcast to all mobile clients
+                    session.mobileClients.forEach(client => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify(data));
+                        }
+                    });
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error:', error);
         }
-      }
-      
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  });
+    });
 
-  ws.on('close', () => {
-    if (ws.uniqueId && sessions.has(ws.uniqueId)) {
-      const session = sessions.get(ws.uniqueId);
-      
-      if (ws.clientType === 'pc') {
-        console.log(`PC disconnected: ${ws.uniqueId}`);
-        session.pcClient = null;
-        
-        // Notify mobile clients
-        session.mobileClients.forEach(client => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'pc_offline' }));
-          }
-        });
-      }
-      else if (ws.clientType === 'mobile') {
-        session.mobileClients.delete(ws);
-        console.log(`Mobile disconnected from: ${ws.uniqueId}`);
-      }
-    }
-  });
+    ws.on('close', () => {
+        if (ws.uniqueId && sessions.has(ws.uniqueId)) {
+            const session = sessions.get(ws.uniqueId);
+            
+            if (ws.clientType === 'pc') {
+                console.log(`PC disconnected: ${ws.uniqueId}`);
+                session.pcClient = null;
+                
+                // Notify mobile clients
+                session.mobileClients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({ type: 'pc_offline' }));
+                    }
+                });
+            }
+            else if (ws.clientType === 'mobile') {
+                session.mobileClients.delete(ws);
+                console.log(`Mobile disconnected from: ${ws.uniqueId}`);
+            }
+        }
+    });
 });
 
+function saveSessions() {
+    const sessionsArray = [];
+    sessions.forEach((session, uniqueId) => {
+        sessionsArray.push({
+            uniqueId,
+            password: session.password,
+            guestPassword: session.guestPassword
+        });
+    });
+    
+    try {
+        fs.writeFileSync(sessionsFile, JSON.stringify(sessionsArray, null, 2));
+    } catch (error) {
+        console.error('Error saving sessions:', error);
+    }
+}
+
 function getMobileAppHTML() {
-  return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
 <head>
     <meta charset='UTF-8'>
@@ -185,13 +239,13 @@ function getMobileAppHTML() {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: 'Segoe UI', Arial, sans-serif;
-            background: #003057;
+            background: #000000;
             color: white;
         }
         .header {
-            background: linear-gradient(135deg, #003057 0%, #005a9c 100%);
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
             padding: 15px 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
         .header h1 { 
             font-size: 20px;
@@ -199,7 +253,6 @@ function getMobileAppHTML() {
             align-items: center;
             gap: 10px;
         }
-        .logo { font-size: 24px; }
         .status {
             padding: 6px 12px;
             border-radius: 20px;
@@ -217,18 +270,18 @@ function getMobileAppHTML() {
             margin: 40px auto;
         }
         .login-card {
-            background: #004d7a;
+            background: #1a1a1a;
             border-radius: 15px;
             padding: 25px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
         .login-card h2 { margin-bottom: 20px; color: #fff; }
         
         input {
             width: 100%;
             padding: 14px;
-            background: #003057;
-            border: 2px solid #005a9c;
+            background: #000000;
+            border: 2px solid #333333;
             border-radius: 8px;
             color: white;
             font-size: 15px;
@@ -245,19 +298,16 @@ function getMobileAppHTML() {
             font-weight: bold;
             cursor: pointer;
             margin: 8px 0;
-            transition: all 0.2s;
         }
         .btn-primary { background: #00c853; color: white; }
-        .btn-secondary { background: #005a9c; color: white; }
+        .btn-secondary { background: #333333; color: white; }
         .btn-danger { background: #f44336; color: white; }
-        .btn-paused { background: #ff9800; color: white; }
         .btn:disabled { background: #555; opacity: 0.5; }
         
         .tabs {
             display: flex;
-            background: #003057;
-            border-bottom: 2px solid #005a9c;
-            overflow-x: auto;
+            background: #000000;
+            border-bottom: 2px solid #333333;
         }
         .tab {
             flex: 1;
@@ -269,12 +319,10 @@ function getMobileAppHTML() {
             color: #7ab8e8;
             font-size: 14px;
             font-weight: bold;
-            white-space: nowrap;
-            min-width: 80px;
         }
         .tab.active {
             color: white;
-            background: #004d7a;
+            background: #1a1a1a;
             border-bottom: 3px solid #00c853;
         }
         
@@ -285,7 +333,7 @@ function getMobileAppHTML() {
         .tab-content.active { display: block; }
         
         .card {
-            background: #004d7a;
+            background: #1a1a1a;
             border-radius: 12px;
             padding: 15px;
             margin-bottom: 15px;
@@ -297,7 +345,7 @@ function getMobileAppHTML() {
             gap: 10px;
         }
         .data-item {
-            background: #003057;
+            background: #000000;
             padding: 12px;
             border-radius: 8px;
             text-align: center;
@@ -325,7 +373,7 @@ function getMobileAppHTML() {
             justify-content: space-between;
             align-items: center;
             padding: 12px;
-            background: #003057;
+            background: #000000;
             border-radius: 8px;
             margin-bottom: 8px;
         }
@@ -337,39 +385,38 @@ function getMobileAppHTML() {
             font-weight: bold;
             cursor: pointer;
             font-size: 12px;
-            min-width: 60px;
         }
         .toggle-btn.on { background: #00c853; color: white; }
         .toggle-btn.off { background: #555; color: #999; }
         
-        .throttle-slider {
-            width: 100%;
-            height: 40px;
-            margin: 10px 0;
-        }
-        
         .hidden { display: none !important; }
         
         .info-box {
-            background: #005a9c;
+            background: #333333;
             padding: 12px;
             border-radius: 8px;
             margin: 10px 0;
             font-size: 13px;
         }
         
+        .btn-paused {
+            background: #ff9800 !important;
+            color: white !important;
+        }
+        
         .waypoint-info {
-            background: #003057;
+            background: #000000;
             padding: 10px;
             border-radius: 8px;
-            margin-top: 10px;
-            font-size: 13px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
         }
     </style>
 </head>
 <body>
     <div class='header'>
-        <h1><span class='logo'>✈️</span> Prepar3D Remote</h1>
+        <h1>Prepar3D Remote</h1>
         <div id='statusBadge' class='status offline'>Offline</div>
     </div>
 
@@ -389,20 +436,24 @@ function getMobileAppHTML() {
             <button class='tab active' onclick='switchTab(0)'>Flight</button>
             <button class='tab' onclick='switchTab(1)'>Map</button>
             <button class='tab' onclick='switchTab(2)'>Autopilot</button>
-            <button class='tab' onclick='switchTab(3)'>Aircraft</button>
+            <button class='tab' onclick='switchTab(3)'>Engines</button>
         </div>
 
         <div class='tab-content active'>
             <div class='card'>
-                <div class='data-label'>Total Distance to Destination</div>
-                <div class='data-value'><span id='totalDistance'>--</span> nm</div>
-                <div style='margin-top: 8px; color: #7ab8e8; font-size: 13px;' id='totalEte'>Total ETE: --</div>
-                
                 <div class='waypoint-info'>
-                    <div style='font-weight: bold; margin-bottom: 5px;'>Next Waypoint: <span id='nextWaypoint'>--</span></div>
-                    <div>Distance: <span id='waypointDistance'>--</span> nm</div>
-                    <div>ETE: <span id='waypointEte'>--</span></div>
+                    <div>
+                        <div class='data-label'>Next Waypoint</div>
+                        <div class='data-value' id='nextWaypoint'>--</div>
+                    </div>
+                    <div>
+                        <div class='data-label'>Distance to Waypoint</div>
+                        <div class='data-value' id='waypointDistance'>--</div>
+                    </div>
                 </div>
+                <div class='data-label'>Distance to Destination</div>
+                <div class='data-value'><span id='distance'>--</span> nm</div>
+                <div style='margin-top: 8px; color: #7ab8e8; font-size: 13px;' id='ete'>ETE: --</div>
             </div>
 
             <div class='card'>
@@ -448,7 +499,7 @@ function getMobileAppHTML() {
             <div id='controlPanel' class='hidden'>
                 <div class='card'>
                     <button class='btn btn-secondary' id='btnPause' onclick='togglePause()'>⏸️ Pause</button>
-                    <button class='btn btn-primary' onclick='saveGame()'>💾 Quick Save</button>
+                    <button class='btn btn-primary' onclick='saveGame()'>💾 Save</button>
                 </div>
                 
                 <div class='card'>
@@ -460,46 +511,46 @@ function getMobileAppHTML() {
                     </div>
                     
                     <div class='control-row'>
-                        <span class='control-label'>Altitude Hold</span>
+                        <span class='control-label'>Altitude</span>
                         <button class='toggle-btn off' id='apAlt' onclick='toggleAP("altitude")'>OFF</button>
                     </div>
-                    <input type='number' id='targetAlt' placeholder='Target Altitude (ft)'>
-                    <button class='btn btn-primary' onclick='setAltitude()'>Set Altitude</button>
+                    <input type='number' id='targetAlt' placeholder='Target Altitude'>
+                    <button class='btn btn-primary' onclick='setAltitude()'>Set</button>
                     
                     <div class='control-row'>
                         <span class='control-label'>V/S</span>
                         <button class='toggle-btn off' id='apVS' onclick='toggleAP("vs")'>OFF</button>
                     </div>
                     <input type='number' id='targetVS' placeholder='Vertical Speed (fpm)'>
-                    <button class='btn btn-primary' onclick='setVS()'>Set V/S</button>
+                    <button class='btn btn-primary' onclick='setVS()'>Set</button>
                     
                     <div class='control-row'>
                         <span class='control-label'>Speed</span>
                         <button class='toggle-btn off' id='apSpeed' onclick='toggleAP("speed")'>OFF</button>
                     </div>
                     <input type='number' id='targetSpeed' placeholder='Target Speed (kts)'>
-                    <button class='btn btn-primary' onclick='setSpeed()'>Set Speed</button>
+                    <button class='btn btn-primary' onclick='setSpeed()'>Set</button>
                     
                     <div class='control-row'>
                         <span class='control-label'>Heading</span>
                         <button class='toggle-btn off' id='apHdg' onclick='toggleAP("heading")'>OFF</button>
                     </div>
-                    <input type='number' id='targetHdg' placeholder='Heading (degrees)'>
-                    <button class='btn btn-primary' onclick='setHeading()'>Set Heading</button>
+                    <input type='number' id='targetHdg' placeholder='Heading'>
+                    <button class='btn btn-primary' onclick='setHeading()'>Set</button>
                     
                     <div class='control-row'>
-                        <span class='control-label'>NAV/GPS Mode</span>
+                        <span class='control-label'>NAV/GPS</span>
                         <button class='toggle-btn off' id='navMode' onclick='toggleNavMode()'>GPS</button>
                     </div>
                     
                     <div class='control-row'>
-                        <span class='control-label'>LOC (NAV1)</span>
-                        <button class='toggle-btn off' id='apLoc' onclick='toggleAP("loc")'>OFF</button>
+                        <span class='control-label'>LOC</span>
+                        <button class='toggle-btn off' id='locMode' onclick='toggleLocMode()'>OFF</button>
                     </div>
                     
                     <div class='control-row'>
-                        <span class='control-label'>ILS Mode</span>
-                        <button class='toggle-btn off' id='ilsMode' onclick='toggleAP("ils")'>OFF</button>
+                        <span class='control-label'>ILS</span>
+                        <button class='toggle-btn off' id='ilsMode' onclick='toggleILSMode()'>OFF</button>
                     </div>
                     
                     <div class='control-row'>
@@ -512,19 +563,9 @@ function getMobileAppHTML() {
                         <button class='toggle-btn off' id='autoThrottle' onclick='toggleAP("throttle")'>OFF</button>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class='tab-content'>
-            <div id='controlLock2' class='card'>
-                <div class='info-box'>🔒 Enter password to access controls</div>
-                <input type='password' id='controlPassword2' placeholder='Password'>
-                <button class='btn btn-primary' onclick='unlockControls2()'>Unlock Controls</button>
-            </div>
-            
-            <div id='aircraftPanel' class='hidden'>
+                
                 <div class='card'>
-                    <h3 style='margin-bottom: 15px;'>Flight Controls</h3>
+                    <h3 style='margin-bottom: 15px;'>Aircraft</h3>
                     
                     <div class='control-row'>
                         <span class='control-label'>Landing Gear</span>
@@ -541,7 +582,7 @@ function getMobileAppHTML() {
                     </div>
                     
                     <div class='control-row'>
-                        <span class='control-label'>Speedbrakes</span>
+                        <span class='control-label'>Speedbrake</span>
                         <button class='toggle-btn off' id='speedbrake' onclick='toggleSpeedbrake()'>OFF</button>
                     </div>
                     
@@ -550,25 +591,62 @@ function getMobileAppHTML() {
                         <button class='toggle-btn off' id='parkingBrake' onclick='toggleParkingBrake()'>OFF</button>
                     </div>
                 </div>
-                
+            </div>
+        </div>
+        
+        <div class='tab-content'>
+            <div id='engineControlLock' class='card'>
+                <div class='info-box'>🔒 Enter password to access engine controls</div>
+                <input type='password' id='engineControlPassword' placeholder='Password'>
+                <button class='btn btn-primary' onclick='unlockEngineControls()'>Unlock Controls</button>
+            </div>
+            
+            <div id='engineControlPanel' class='hidden'>
                 <div class='card'>
                     <h3 style='margin-bottom: 15px;'>Engine Controls</h3>
                     
                     <div class='control-row'>
-                        <span class='control-label'>Engines</span>
-                        <div>
-                            <button class='btn btn-primary' style='width:auto; padding:8px 16px; margin:0 5px;' onclick='startEngines()'>Start</button>
-                            <button class='btn btn-danger' style='width:auto; padding:8px 16px; margin:0 5px;' onclick='stopEngines()'>Stop</button>
-                        </div>
+                        <span class='control-label'>Engine 1</span>
+                        <button class='toggle-btn on' id='engine1' onclick='toggleEngine(1)'>ON</button>
                     </div>
                     
-                    <div style='margin: 15px 0;'>
-                        <div class='data-label'>Throttle Position</div>
-                        <div class='data-value' id='throttleDisplay'>0%</div>
-                        <input type='range' min='0' max='100' value='0' class='throttle-slider' id='throttleSlider' oninput='updateThrottle(this.value)'>
+                    <div class='control-row'>
+                        <span class='control-label'>Engine 2</span>
+                        <button class='toggle-btn on' id='engine2' onclick='toggleEngine(2)'>ON</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Engine 3</span>
+                        <button class='toggle-btn on' id='engine3' onclick='toggleEngine(3)'>ON</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Engine 4</span>
+                        <button class='toggle-btn on' id='engine4' onclick='toggleEngine(4)'>ON</button>
+                    </div>
+                    
+                    <div class='control-row'>
+                        <span class='control-label'>Throttle</span>
+                        <div style='width: 100%; padding: 0 10px;'>
+                            <input type='range' id='throttleSlider' min='0' max='100' value='0' style='width: 100%;' oninput='updateThrottle(this.value)'>
+                            <div style='display: flex; justify-content: space-between; margin-top: 5px;'>
+                                <span>0%</span>
+                                <span id='throttleValue'>0%</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id='saveModal' class='hidden' style='position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000;'>
+        <div class='card' style='width: 80%; max-width: 400px;'>
+            <h2>Save Flight</h2>
+            <input type='text' id='saveTitle' placeholder='Enter save title'>
+            <button class='btn btn-primary' onclick='confirmSave()'>Save</button>
+            <button class='btn btn-secondary' onclick='closeSaveModal()'>Cancel</button>
         </div>
     </div>
 
@@ -581,6 +659,7 @@ function getMobileAppHTML() {
         let showingRoute = false;
         let uniqueId = null;
         let hasControl = false;
+        let hasEngineControl = false;
 
         function switchTab(index) {
             document.querySelectorAll('.tab').forEach((tab, i) => {
@@ -642,8 +721,12 @@ function getMobileAppHTML() {
                     hasControl = true;
                     document.getElementById('controlLock').classList.add('hidden');
                     document.getElementById('controlPanel').classList.remove('hidden');
-                    document.getElementById('controlLock2').classList.add('hidden');
-                    document.getElementById('aircraftPanel').classList.remove('hidden');
+                    break;
+                    
+                case 'engine_control_granted':
+                    hasEngineControl = true;
+                    document.getElementById('engineControlLock').classList.add('hidden');
+                    document.getElementById('engineControlPanel').classList.remove('hidden');
                     break;
                     
                 case 'auth_failed':
@@ -662,6 +745,10 @@ function getMobileAppHTML() {
                     
                 case 'autopilot_state':
                     updateAutopilotUI(data.data);
+                    break;
+                    
+                case 'engine_state':
+                    updateEngineUI(data.data);
                     break;
                     
                 case 'ai_traffic':
@@ -685,39 +772,22 @@ function getMobileAppHTML() {
             document.getElementById('altitude').textContent = Math.round(data.altitude).toLocaleString();
             document.getElementById('heading').textContent = Math.round(data.heading) + '°';
             document.getElementById('vs').textContent = Math.round(data.verticalSpeed);
-            
-            // Total distance to destination
-            document.getElementById('totalDistance').textContent = data.totalDistance ? data.totalDistance.toFixed(1) : '--';
-            
-            // Total ETE
-            if (data.totalEte && data.totalEte > 0) {
-                const hours = Math.floor(data.totalEte / 3600);
-                const minutes = Math.floor((data.totalEte % 3600) / 60);
-                document.getElementById('totalEte').textContent = 'Total ETE: ' + (hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm');
-            } else {
-                document.getElementById('totalEte').textContent = 'Total ETE: --';
-            }
-            
-            // Next waypoint info
+            document.getElementById('distance').textContent = data.totalDistance.toFixed(1);
             document.getElementById('nextWaypoint').textContent = data.nextWaypoint || '--';
-            document.getElementById('waypointDistance').textContent = data.waypointDistance ? data.waypointDistance.toFixed(1) : '--';
+            document.getElementById('waypointDistance').textContent = data.waypointDistance ? data.waypointDistance.toFixed(1) + ' nm' : '--';
             
-            if (data.waypointEte && data.waypointEte > 0) {
-                const hours = Math.floor(data.waypointEte / 3600);
-                const minutes = Math.floor((data.waypointEte % 3600) / 60);
-                document.getElementById('waypointEte').textContent = (hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm');
-            } else {
-                document.getElementById('waypointEte').textContent = '--';
-            }
+            const hours = Math.floor(data.ete / 3600);
+            const minutes = Math.floor((data.ete % 3600) / 60);
+            document.getElementById('ete').textContent = 'ETE: ' + (hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm');
 
-            // Update pause button style
             const btnPause = document.getElementById('btnPause');
+            btnPause.textContent = data.isPaused ? '▶️ Resume' : '⏸️ Pause';
+            
+            // Change button color when paused
             if (data.isPaused) {
-                btnPause.textContent = '▶️ Resume';
-                btnPause.className = 'btn btn-paused';
+                btnPause.classList.add('btn-paused');
             } else {
-                btnPause.textContent = '⏸️ Pause';
-                btnPause.className = 'btn btn-secondary';
+                btnPause.classList.remove('btn-paused');
             }
 
             if (map && data.latitude && data.longitude) {
@@ -732,8 +802,6 @@ function getMobileAppHTML() {
             updateToggle('apVS', data.vs);
             updateToggle('apSpeed', data.speed);
             updateToggle('apApp', data.approach);
-            updateToggle('apLoc', data.loc);
-            updateToggle('ilsMode', data.ils);
             updateToggle('autoThrottle', data.throttle);
             updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
             updateToggle('speedbrake', data.speedbrake);
@@ -741,250 +809,223 @@ function getMobileAppHTML() {
             
             document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
             
-            // NAV/GPS toggle - FIXED: Show GPS when GPS is active
+            // NAV/GPS toggle (fixed)
             const navBtn = document.getElementById('navMode');
             navBtn.textContent = data.navMode ? 'NAV' : 'GPS';
-            navBtn.className = 'toggle-btn ' + (data.navMode || data.gpsActive ? 'on' : 'off');
+            navBtn.className = 'toggle-btn ' + (data.navMode ? 'off' : 'on');
             
-            // Update throttle display if available
-            if (data.throttle !== undefined) {
-                const throttlePercent = Math.round(data.throttle * 100);
-                document.getElementById('throttleDisplay').textContent = throttlePercent + '%';
-                document.getElementById('throttleSlider').value = throttlePercent;
-            }
+            // LOC toggle
+            const locBtn = document.getElementById('locMode');
+            locBtn.className = 'toggle-btn ' + (data.locMode ? 'on' : 'off');
+            
+            // ILS toggle
+            const ilsBtn = document.getElementById('ilsMode');
+            ilsBtn.className = 'toggle-btn ' + (data.ilsMode ? 'on' : 'off');
+            
+            // Update input fields with current values
+            document.getElementById('targetAlt').value = data.targetAlt || '';
+            document.getElementById('targetHdg').value = data.targetHdg || '';
+            document.getElementById('targetVS').value = data.targetVS || '';
+            document.getElementById('targetSpeed').value = data.targetSpeed || '';
         }
 
-        function updateToggle(id, state, customText) {
+        function updateEngineUI(data) {
+            for (let i = 1; i <= 4; i++) {
+                const engineKey = 'engine' + i;
+                const engineBtn = document.getElementById(engineKey);
+                if (engineBtn) {
+                    updateToggle(engineKey, data[engineKey]);
+                }
+            }
+            
+            // Update throttle slider
+            document.getElementById('throttleSlider').value = data.throttle || 0;
+            document.getElementById('throttleValue').textContent = (data.throttle || 0) + '%';
+        }
+
+        function updateToggle(id, state, text) {
             const btn = document.getElementById(id);
             if (!btn) return;
             
             btn.className = 'toggle-btn ' + (state ? 'on' : 'off');
-            btn.textContent = customText || (state ? 'ON' : 'OFF');
+            btn.textContent = text || (state ? 'ON' : 'OFF');
         }
 
         function initMap() {
-            map = L.map('map').setView([0, 0], 2);
+            map = L.map('map').setView([0, 0], 8);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            
+            aircraftMarker = L.marker([0, 0], {
+                icon: createPlaneIcon('#FFD700', 32)
             }).addTo(map);
         }
 
+        function createPlaneIcon(color, size) {
+            return L.divIcon({
+                html: '<div style="font-size:' + size + 'px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">✈️</div>',
+                className: '',
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2]
+            });
+        }
+
         function updateMap(lat, lon, heading) {
-            if (!map || !aircraftMarker) {
-                const planeIcon = L.divIcon({
-                    html: '<div style="transform: rotate(' + heading + 'deg); font-size: 20px;">✈️</div>',
-                    iconSize: [20, 20],
-                    className: 'aircraft-icon'
-                });
-                
-                aircraftMarker = L.marker([lat, lon], { icon: planeIcon }).addTo(map);
-                map.setView([lat, lon], 10);
-            } else {
-                aircraftMarker.setLatLng([lat, lon]);
-                aircraftMarker.setIcon(L.divIcon({
-                    html: '<div style="transform: rotate(' + heading + 'deg); font-size: 20px;">✈️</div>',
-                    iconSize: [20, 20],
-                    className: 'aircraft-icon'
-                }));
-            }
+            if (!map) return;
+            
+            const icon = L.divIcon({
+                html: '<div style="font-size:32px;transform:rotate(' + heading + 'deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">✈️</div>',
+                className: '',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+            
+            aircraftMarker.setLatLng([lat, lon]);
+            aircraftMarker.setIcon(icon);
+            map.setView([lat, lon], map.getZoom());
         }
 
         function updateAITraffic(aircraft) {
-            // Clear existing markers
-            aiMarkers.forEach(marker => map.removeLayer(marker));
+            // Clear old markers
+            aiMarkers.forEach(m => map.removeLayer(m));
             aiMarkers = [];
             
-            // Add new markers
+            if (!map) return;
+            
             aircraft.forEach(ac => {
-                const marker = L.marker([ac.lat, ac.lon]).addTo(map);
-                marker.bindPopup(ac.type + ' (' + ac.tailNumber + ')');
+                const marker = L.marker([ac.latitude, ac.longitude], {
+                    icon: createPlaneIcon('#FFFFFF', 20)
+                }).addTo(map);
+                
+                marker.bindPopup('<strong>' + ac.callsign + '</strong><br>' +
+                    'Alt: ' + Math.round(ac.altitude) + ' ft<br>' +
+                    'Speed: ' + Math.round(ac.speed) + ' kts');
+                
                 aiMarkers.push(marker);
             });
         }
 
         function toggleRoute() {
-            const btn = document.getElementById('btnRoute');
-            showingRoute = !showingRoute;
-            
-            if (showingRoute) {
-                btn.textContent = 'Hide Route';
-                // Request route data from PC
-                if (ws) {
-                    ws.send(JSON.stringify({ type: 'get_route' }));
-                }
-            } else {
-                btn.textContent = 'Show Route';
-                if (routePolyline) {
-                    map.removeLayer(routePolyline);
-                    routePolyline = null;
-                }
-            }
+            // Implement route toggle
         }
 
         function unlockControls() {
             const password = document.getElementById('controlPassword').value;
-            if (!password) {
-                alert('Please enter a password');
-                return;
-            }
-            
-            if (ws) {
-                ws.send(JSON.stringify({
-                    type: 'request_control',
-                    password: password
-                }));
-            }
+            ws.send(JSON.stringify({ type: 'request_control', password }));
         }
 
-        function unlockControls2() {
-            const password = document.getElementById('controlPassword2').value;
-            if (!password) {
-                alert('Please enter a password');
-                return;
-            }
-            
-            if (ws) {
-                ws.send(JSON.stringify({
-                    type: 'request_control',
-                    password: password
-                }));
-            }
+        function unlockEngineControls() {
+            const password = document.getElementById('engineControlPassword').value;
+            ws.send(JSON.stringify({ type: 'request_engine_control', password }));
         }
 
         function togglePause() {
-            if (ws) {
-                ws.send(JSON.stringify({ type: 'pause_toggle' }));
-            }
+            ws.send(JSON.stringify({ type: 'pause_toggle' }));
         }
 
         function saveGame() {
-            if (ws) {
-                ws.send(JSON.stringify({ type: 'save_game' }));
-            }
+            document.getElementById('saveModal').classList.remove('hidden');
         }
 
-        function toggleAP(mode) {
-            if (ws) {
-                ws.send(JSON.stringify({ type: 'autopilot_toggle', mode: mode }));
+        function confirmSave() {
+            const title = document.getElementById('saveTitle').value;
+            if (!title) {
+                alert('Please enter a save title');
+                return;
             }
+            
+            ws.send(JSON.stringify({ type: 'save_game_with_title', title }));
+            closeSaveModal();
+            alert('Flight saved!');
+        }
+
+        function closeSaveModal() {
+            document.getElementById('saveModal').classList.add('hidden');
+            document.getElementById('saveTitle').value = '';
+        }
+
+        function toggleAP(system) {
+            ws.send(JSON.stringify({ type: 'autopilot_toggle', system }));
         }
 
         function setAltitude() {
-            const altitude = document.getElementById('targetAlt').value;
-            if (!altitude) return;
-            
-            if (ws) {
-                ws.send(JSON.stringify({ 
-                    type: 'autopilot_set_altitude', 
-                    value: parseInt(altitude) 
-                }));
-            }
-        }
-
-        function setVS() {
-            const vs = document.getElementById('targetVS').value;
-            if (!vs) return;
-            
-            if (ws) {
-                ws.send(JSON.stringify({ 
-                    type: 'autopilot_set_vs', 
-                    value: parseInt(vs) 
-                }));
-            }
-        }
-
-        function setSpeed() {
-            const speed = document.getElementById('targetSpeed').value;
-            if (!speed) return;
-            
-            if (ws) {
-                ws.send(JSON.stringify({ 
-                    type: 'autopilot_set_speed', 
-                    value: parseInt(speed) 
-                }));
+            const alt = parseInt(document.getElementById('targetAlt').value);
+            if (!isNaN(alt)) {
+                ws.send(JSON.stringify({ type: 'autopilot_set', param: 'altitude', value: alt }));
             }
         }
 
         function setHeading() {
-            const heading = document.getElementById('targetHdg').value;
-            if (!heading) return;
-            
-            if (ws) {
-                ws.send(JSON.stringify({ 
-                    type: 'autopilot_set_heading', 
-                    value: parseInt(heading) 
-                }));
+            const hdg = parseInt(document.getElementById('targetHdg').value);
+            if (!isNaN(hdg)) {
+                ws.send(JSON.stringify({ type: 'autopilot_set', param: 'heading', value: hdg }));
+            }
+        }
+
+        function setVS() {
+            const vs = parseInt(document.getElementById('targetVS').value);
+            if (!isNaN(vs)) {
+                ws.send(JSON.stringify({ type: 'autopilot_set', param: 'vs', value: vs }));
+            }
+        }
+
+        function setSpeed() {
+            const speed = parseInt(document.getElementById('targetSpeed').value);
+            if (!isNaN(speed)) {
+                ws.send(JSON.stringify({ type: 'autopilot_set', param: 'speed', value: speed }));
             }
         }
 
         function toggleNavMode() {
-            if (ws) {
-                ws.send(JSON.stringify({ type: 'toggle_nav_mode' }));
-            }
+            ws.send(JSON.stringify({ type: 'toggle_nav_mode' }));
+        }
+
+        function toggleLocMode() {
+            ws.send(JSON.stringify({ type: 'toggle_loc_mode' }));
+        }
+
+        function toggleILSMode() {
+            ws.send(JSON.stringify({ type: 'toggle_ils_mode' }));
         }
 
         function toggleGear() {
-            if (ws) {
-                ws.send(JSON.stringify({ type: 'toggle_gear' }));
-            }
+            ws.send(JSON.stringify({ type: 'toggle_gear' }));
         }
 
         function changeFlaps(direction) {
-            if (ws) {
-                ws.send(JSON.stringify({ 
-                    type: 'change_flaps', 
-                    direction: direction 
-                }));
-            }
+            ws.send(JSON.stringify({ type: 'change_flaps', direction }));
         }
 
         function toggleSpeedbrake() {
-            if (ws) {
-                ws.send(JSON.stringify({ type: 'toggle_speedbrake' }));
-            }
+            ws.send(JSON.stringify({ type: 'toggle_speedbrake' }));
         }
 
         function toggleParkingBrake() {
-            if (ws) {
-                ws.send(JSON.stringify({ type: 'toggle_parking_brake' }));
-            }
+            ws.send(JSON.stringify({ type: 'toggle_parking_brake' }));
+        }
+
+        function toggleEngine(engineNumber) {
+            ws.send(JSON.stringify({ type: 'toggle_engine', engineNumber }));
         }
 
         function updateThrottle(value) {
-            document.getElementById('throttleDisplay').textContent = value + '%';
-            
-            if (ws) {
-                ws.send(JSON.stringify({ 
-                    type: 'set_throttle', 
-                    value: parseInt(value) / 100 
-                }));
-            }
+            document.getElementById('throttleValue').textContent = value + '%';
+            ws.send(JSON.stringify({ type: 'set_throttle', value: parseInt(value) }));
         }
 
-        function startEngines() {
-            if (ws) {
-                ws.send(JSON.stringify({ type: 'engine_start' }));
-            }
-        }
-
-        function stopEngines() {
-            if (ws) {
-                ws.send(JSON.stringify({ type: 'engine_stop' }));
-            }
-        }
-
-        // Check for saved unique ID
-        document.addEventListener('DOMContentLoaded', () => {
+        // Load saved ID
+        window.onload = () => {
             const savedId = localStorage.getItem('p3d_unique_id');
             if (savedId) {
                 document.getElementById('uniqueId').value = savedId;
             }
-        });
+        };
     </script>
 </body>
 </html>`;
 }
 
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
