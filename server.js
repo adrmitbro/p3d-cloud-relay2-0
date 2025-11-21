@@ -888,5 +888,5 @@ function getMobileAppHTML() {
 }
 
 server.listen(PORT, () => {
-  console.log(\`P3D Remote Cloud Relay running on port \${PORT}\`);
+  console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
