@@ -26,11 +26,12 @@ app.get('/', (req, res) => {
 });
 
 wss.on('connection', (ws, req) => {
-  console.log('New connection');
+  console.log('New connection established');
   
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
+      console.log('Received message type:', data.type, 'from', ws.clientType || 'unknown');
       
       if (data.type === 'register_pc') {
         // PC registering with unique ID
@@ -38,18 +39,23 @@ wss.on('connection', (ws, req) => {
         const password = data.password;
         const guestPassword = data.guestPassword;
         
-        // Check if uniqueId is already taken
+        console.log(`PC registration attempt for ID: ${uniqueId}`);
+        
+        // Check if uniqueId is already taken by another PC client
         if (sessions.has(uniqueId)) {
           const session = sessions.get(uniqueId);
           if (session.pcClient && session.pcClient !== ws && session.pcClient.readyState === WebSocket.OPEN) {
+            console.log(`ID ${uniqueId} already in use by another client`);
             ws.send(JSON.stringify({ type: 'error', message: 'ID already in use by another client' }));
             return;
           }
         }
         
+        // Store client info
         ws.uniqueId = uniqueId;
         ws.clientType = 'pc';
         
+        // Create or update session
         if (!sessions.has(uniqueId)) {
           sessions.set(uniqueId, {
             pcClient: ws,
@@ -57,22 +63,41 @@ wss.on('connection', (ws, req) => {
             password: password,
             guestPassword: guestPassword
           });
+          console.log(`Created new session for ${uniqueId}`);
         } else {
           const session = sessions.get(uniqueId);
           session.pcClient = ws;
           session.password = password;
           session.guestPassword = guestPassword;
+          console.log(`Updated existing session for ${uniqueId}`);
         }
         
-        ws.send(JSON.stringify({ type: 'registered', uniqueId }));
-        console.log(`PC registered: ${uniqueId}`);
+        // Send confirmation to PC
+        ws.send(JSON.stringify({ 
+          type: 'registered', 
+          uniqueId: uniqueId,
+          message: 'Successfully registered'
+        }));
+        
+        console.log(`PC registered successfully: ${uniqueId}`);
+        
+        // Notify mobile clients that PC is online
+        const session = sessions.get(uniqueId);
+        session.mobileClients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'pc_online' }));
+          }
+        });
       }
       
       else if (data.type === 'connect_mobile') {
         // Mobile connecting with unique ID
         const uniqueId = data.uniqueId;
         
+        console.log(`Mobile connection attempt for ID: ${uniqueId}`);
+        
         if (!sessions.has(uniqueId)) {
+          console.log(`No session found for ID: ${uniqueId}`);
           ws.send(JSON.stringify({ type: 'error', message: 'Invalid ID' }));
           return;
         }
@@ -86,7 +111,7 @@ wss.on('connection', (ws, req) => {
         
         ws.send(JSON.stringify({ 
           type: 'connected',
-          pcOnline: !!session.pcClient
+          pcOnline: !!session.pcClient && session.pcClient.readyState === WebSocket.OPEN
         }));
         
         console.log(`Mobile connected to: ${uniqueId}`);
@@ -98,22 +123,27 @@ wss.on('connection', (ws, req) => {
         const session = sessions.get(ws.uniqueId);
         
         if (!session) {
-          ws.send(JSON.stringify({ type: 'auth_failed' }));
+          ws.send(JSON.stringify({ type: 'auth_failed', message: 'Session not found' }));
           return;
         }
         
         if (password === session.password || password === session.guestPassword) {
           ws.hasControlAccess = true;
-          ws.send(JSON.stringify({ type: 'control_granted' }));
+          ws.send(JSON.stringify({ type: 'control_granted', message: 'Access granted' }));
+          console.log(`Control granted to mobile client for ${ws.uniqueId}`);
         } else {
-          ws.send(JSON.stringify({ type: 'auth_failed' }));
+          ws.send(JSON.stringify({ type: 'auth_failed', message: 'Invalid password' }));
+          console.log(`Auth failed for mobile client for ${ws.uniqueId}`);
         }
       }
       
       else {
         // Route all other messages
         const session = sessions.get(ws.uniqueId);
-        if (!session) return;
+        if (!session) {
+          console.log(`No session found for message routing from ${ws.uniqueId}`);
+          return;
+        }
         
         if (ws.clientType === 'mobile' && session.pcClient) {
           // Check if command requires control access
@@ -137,24 +167,33 @@ wss.on('connection', (ws, req) => {
           // Forward to PC
           if (session.pcClient.readyState === WebSocket.OPEN) {
             session.pcClient.send(JSON.stringify(data));
+            console.log(`Forwarded message from mobile to PC for ${ws.uniqueId}`);
+          } else {
+            console.log(`PC client not available for ${ws.uniqueId}`);
+            ws.send(JSON.stringify({ type: 'error', message: 'PC client not available' }));
           }
         }
         else if (ws.clientType === 'pc') {
           // Broadcast to all mobile clients
+          let mobileCount = 0;
           session.mobileClients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(JSON.stringify(data));
+              mobileCount++;
             }
           });
+          console.log(`Broadcasted message from PC to ${mobileCount} mobile clients for ${ws.uniqueId}`);
         }
       }
       
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error processing message:', error);
     }
   });
 
   ws.on('close', () => {
+    console.log(`Connection closed for ${ws.clientType} client with ID: ${ws.uniqueId || 'unknown'}`);
+    
     if (ws.uniqueId && sessions.has(ws.uniqueId)) {
       const session = sessions.get(ws.uniqueId);
       
@@ -174,6 +213,10 @@ wss.on('connection', (ws, req) => {
         console.log(`Mobile disconnected from: ${ws.uniqueId}`);
       }
     }
+  });
+
+  ws.on('error', (error) => {
+    console.error(`WebSocket error for ${ws.clientType} client:`, error);
   });
 });
 
@@ -724,6 +767,7 @@ function getMobileAppHTML() {
             ws = new WebSocket(protocol + '//' + window.location.host);
             
             ws.onopen = () => {
+                console.log('WebSocket connected');
                 ws.send(JSON.stringify({ 
                     type: 'connect_mobile',
                     uniqueId: uniqueId
@@ -732,12 +776,18 @@ function getMobileAppHTML() {
 
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
+                console.log('Received message:', data.type);
                 handleMessage(data);
             };
 
             ws.onclose = () => {
+                console.log('WebSocket disconnected');
                 updateStatus('offline');
                 setTimeout(connectToSim, 3000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
             };
         }
 
@@ -749,18 +799,28 @@ function getMobileAppHTML() {
                     updateStatus(data.pcOnline ? 'connected' : 'offline');
                     break;
                     
+                case 'pc_online':
+                    updateStatus('connected');
+                    break;
+                    
+                case 'pc_offline':
+                    updateStatus('offline');
+                    break;
+                    
                 case 'error':
-                    alert(data.message);
+                    alert(data.message || 'An error occurred');
                     break;
                     
                 case 'control_granted':
                     hasControl = true;
                     document.getElementById('controlLock').classList.add('hidden');
                     document.getElementById('controlPanel').classList.remove('hidden');
+                    document.getElementById('aircraftLock').classList.add('hidden');
+                    document.getElementById('aircraftPanel').classList.remove('hidden');
                     break;
                     
                 case 'auth_failed':
-                    alert('Wrong password!');
+                    alert(data.message || 'Authentication failed');
                     break;
                     
                 case 'control_required':
@@ -779,10 +839,6 @@ function getMobileAppHTML() {
                     
                 case 'ai_traffic':
                     updateAITraffic(data.aircraft);
-                    break;
-                    
-                case 'pc_offline':
-                    updateStatus('offline');
                     break;
             }
         }
