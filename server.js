@@ -606,6 +606,7 @@ function getMobileAppHTML() {
                 <div class='data-label'>Next Waypoint</div>
                 <div class='data-value' style='font-size: 18px;' id='nextWaypoint'>--</div>
                 <div style='margin-top: 8px; color: #888; font-size: 13px;' id='wpDistance'>Distance: --</div>
+                <div style='color: #888; font-size: 13px;' id='wpBearing'>Bearing: --</div>
                 <div style='color: #888; font-size: 13px;' id='wpEte'>ETE: --</div>
             </div>
 
@@ -934,6 +935,9 @@ function getMobileAppHTML() {
                 document.getElementById('wpEte').textContent = 'ETE: --';
             }
             
+            // Added next waypoint bearing
+            document.getElementById('wpBearing').textContent = 'Bearing: ' + (data.waypointBearing ? Math.round(data.waypointBearing) + '°' : '--');
+            
             // Total distance to destination
             if (data.totalDistance && data.totalDistance > 0) {
                 document.getElementById('distance').textContent = data.totalDistance.toFixed(1);
@@ -1004,7 +1008,7 @@ function getMobileAppHTML() {
             return L.divIcon({
                 html: \`<div class="user-aircraft" style="transform: rotate(\${heading}deg);">
                          <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#FFD700" stroke="#000" stroke-width="0.5"/>
+                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#FFD700" stroke="#000" stroke-width="0.5"/>
                          </svg>
                        </div>\`,
                 className: '',
@@ -1020,7 +1024,7 @@ function getMobileAppHTML() {
             return L.divIcon({
                 html: \`<div class="ai-aircraft \${isSelected ? 'selected' : ''}" style="transform: rotate(\${heading}deg);">
                          <svg width="\${size}" height="\${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="\${color}" stroke="#000" stroke-width="0.5"/>
+                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="\${color}" stroke="#000" stroke-width="0.5"/>
                          </svg>
                        </div>\`,
                 className: '',
@@ -1072,7 +1076,7 @@ function getMobileAppHTML() {
             map.on('click', function(e) {
                 // Check if clicking on an aircraft marker
                 if (e.originalEvent.target.closest('.leaflet-marker-icon')) {
-                    return; // Let the aircraft click handler handle this
+                    return; // Let's the aircraft click handler handle this
                 }
                 
                 // Clicked on empty map space - deselect aircraft
@@ -1125,7 +1129,7 @@ function getMobileAppHTML() {
             aiAircraft.forEach(aircraft => {
                 const isSelected = selectedAircraft && 
                                 ((selectedAircraft.atcId && selectedAircraft.atcId === aircraft.atcId) || 
-                                 (!selectedAircraft.atcId && selectedAircraft.title === aircraft.title));
+                                 (!selectedAircraft.atcId && selectedAircraft.title === aircraft.title)));
                 
                 const marker = L.marker([aircraft.latitude, aircraft.longitude], { 
                     icon: createAIAircraftIcon(aircraft.heading, isSelected)
@@ -1167,7 +1171,6 @@ function getMobileAppHTML() {
                     selectedAircraft = aircraft;
                     updateAircraftDetails(aircraft);
                     updateMap(lat, lon, heading);
-                    updateFollowButton();
                 });
                 
                 aircraftMarkers.push(marker);
@@ -1299,7 +1302,7 @@ function getMobileAppHTML() {
             followUser = true;
             mapZoom = 7;
             updateFollowButton();
-            // Don't deselect aircraft when following user
+            selectedAircraft = null;
             updateMap(userLat, userLon, userHeading);
             updateNearbyAircraftList();
         }
