@@ -181,7 +181,6 @@ function getMobileAppHTML() {
     <title>P3D Remote</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link href="https://fonts.cdnfonts.com/css/good-times" rel="stylesheet">  <!-- ADD THIS LINE -->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -196,12 +195,12 @@ function getMobileAppHTML() {
             box-shadow: 0 2px 10px rgba(0,0,0,0.5);
             border-bottom: 2px solid #167fac;
         }
-.header h1 { 
-    font-size: 20px;
-    font-family: 'Good Times', sans-serif;
-    letter-spacing: 2px;
-    margin: 0;
-}
+        .header h1 { 
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         .header-info {
             display: flex;
             justify-content: space-between;
@@ -1046,7 +1045,7 @@ function getMobileAppHTML() {
 
             // Update flight plan title in header
             if (data.flightPlanTitle) {
-                document.getElementById('flightPlan').textContent = 'C:fs9gps:' + data.flightPlanTitle;
+                document.getElementById('flightPlan').textContent = 'GPS IS ACTIVE FLIGHT PLAN';
             } else {
                 document.getElementById('flightPlan').textContent = 'No Flight Plan';
             }
