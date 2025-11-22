@@ -213,11 +213,11 @@ function getMobileAppHTML() {
         }
         .status.connected { background: #167fac; color: #fff; }
         .status.offline { background: #f44336; color: white; }
-        .status.paused { 
-            background: #800000; 
-            color: #000;
-            display: none;
-        }
+.status.paused { 
+    background: #800000; 
+    color: #fff;  /* Changed from #000 to #fff */
+    display: none;
+}
         .status.paused.visible { display: inline-block; }
         
         .login-screen {
@@ -262,19 +262,10 @@ function getMobileAppHTML() {
         .btn-primary:active { background: #1a8fd4; }
         .btn-secondary { background: #2d2d2d; color: white; border: 1px solid #444; }
         .btn-secondary:active { background: #3d3d3d; }
-        .btn-warning { background: #800000; color: #000; }
+        .btn-warning { background: #800000; color: #fff; }  /* Changed from #000 to #fff */
         .btn-danger { background: #f44336; color: white; }
         .btn:disabled { background: #333; opacity: 0.5; }
-        .btn.paused { 
-            background: #800000; 
-            color: #000;
-            animation: pulse 1.5s infinite; 
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(0.98); }
-        }
+
         
         .tabs {
             display: flex;
@@ -1507,6 +1498,7 @@ function updateAutopilotUI(data) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
