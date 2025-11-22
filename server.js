@@ -1457,7 +1457,6 @@ function closeSaveProgress(success, filename) {
     const overlay = document.getElementById('saveProgressOverlay');
     if (!overlay) return;
     
-    // Clear progress animation
     const intervalId = overlay.dataset.intervalId;
     if (intervalId) {
         clearInterval(parseInt(intervalId));
@@ -1468,23 +1467,17 @@ function closeSaveProgress(success, filename) {
         progressBar.style.width = '100%';
     }
     
-    // Update message
     const content = overlay.querySelector('div > div');
     if (success) {
-        content.innerHTML = `
-            <div style="font-size: 40px; margin-bottom: 15px;">✅</div>
-            <h3 style="margin: 0 0 10px 0; color: #4CAF50;">Flight Saved!</h3>
-            <div style="color: #ccc; font-size: 14px;">${filename}</div>
-        `;
+        content.innerHTML = '<div style="font-size: 40px; margin-bottom: 15px;">✅</div>' +
+                           '<h3 style="margin: 0 0 10px 0; color: #4CAF50;">Flight Saved!</h3>' +
+                           '<div style="color: #ccc; font-size: 14px;">' + filename + '</div>';
     } else {
-        content.innerHTML = `
-            <div style="font-size: 40px; margin-bottom: 15px;">❌</div>
-            <h3 style="margin: 0 0 10px 0; color: #f44336;">Save Failed</h3>
-            <div style="color: #ccc; font-size: 14px;">Please try again</div>
-        `;
+        content.innerHTML = '<div style="font-size: 40px; margin-bottom: 15px;">❌</div>' +
+                           '<h3 style="margin: 0 0 10px 0; color: #f44336;">Save Failed</h3>' +
+                           '<div style="color: #ccc; font-size: 14px;">Please try again</div>';
     }
     
-    // Auto-close after 2 seconds
     setTimeout(() => {
         overlay.remove();
     }, 2000);
@@ -1576,6 +1569,7 @@ function closeSaveProgress(success, filename) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
