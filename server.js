@@ -534,7 +534,7 @@ function getMobileAppHTML() {
                     
                     <div class='control-row'>
                         <span class='control-label'>NAV/GPS Mode</span>
-                        <button class='toggle-btn off' id='navMode' onclick='toggleNavMode()'>GPS</button>
+                        <button class='toggle-btn off' id='navMode' onclick='toggleNavMode()'>NAV</button>
                     </div>
                     
                     <div class='control-row'>
@@ -577,7 +577,7 @@ function getMobileAppHTML() {
                     
                     <div class='control-row'>
                         <span class='control-label'>Speedbrake</span>
-                        <button class='toggle-btn off' id='spoilers' onclick='toggleSpeedbrake()'>OFF</button>
+                        <button class='toggle-btn off' id='spoilers' onclick='toggleSpeedbrake()'>RETRACTED</button>
                     </div>
                     
                     <div class='control-row'>
@@ -706,7 +706,7 @@ function getMobileAppHTML() {
                 document.getElementById('wpEte').textContent = 'ETE: --';
             }
             
-            // Total distance to destination - FIXED
+            // Total distance to destination
             if (data.totalDistance && data.totalDistance > 0) {
                 document.getElementById('distance').textContent = data.totalDistance.toFixed(1);
             } else {
@@ -722,8 +722,7 @@ function getMobileAppHTML() {
                 document.getElementById('ete').textContent = 'Total ETE: --';
             }
 
-            // Pause state - FIXED
-            isPaused = data.isPaused;
+            // Pause state - FIXED: Sync with sim state
             const btnPause = document.getElementById('btnPause');
             if (data.isPaused) {
                 btnPause.textContent = '▶️ PAUSED - Resume';
@@ -739,12 +738,14 @@ function getMobileAppHTML() {
         }
 
         function updateAutopilotUI(data) {
+            // FIXED: Master button now shows ON in blue when active
             updateToggle('apMaster', data.master);
             updateToggle('apAlt', data.altitude);
             updateToggle('apHdg', data.heading);
             updateToggle('apVS', data.vs);
             updateToggle('apSpeed', data.speed);
             updateToggle('apApp', data.approach);
+            // FIXED: LOC button now shows ON in blue when active
             updateToggle('apNav', data.nav);
             updateToggle('apBackcourse', data.backcourse);
             updateToggle('autoThrottle', data.throttle);
@@ -753,13 +754,13 @@ function getMobileAppHTML() {
             
             document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
             
-            // Spoilers
+            // FIXED: Speedbrake now shows EXTENDED in blue when active
             const spoilersBtn = document.getElementById('spoilers');
             const spoilersActive = data.spoilers > 10;
             spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
-            spoilersBtn.textContent = spoilersActive ? 'DEPLOYED' : 'RETRACTED';
+            spoilersBtn.textContent = spoilersActive ? 'EXTENDED' : 'RETRACTED';
             
-            // NAV/GPS toggle - FIXED: inverted the logic
+            // FIXED: NAV/GPS button now shows GPS in blue when in GPS mode
             const navBtn = document.getElementById('navMode');
             navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
             navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
@@ -822,7 +823,6 @@ function getMobileAppHTML() {
         }
 
         function toggleAP(system) {
-            // FIXED: Send the correct system name for LOC and ILS
             if (system === 'loc') {
                 ws.send(JSON.stringify({ type: 'autopilot_toggle', system: 'loc' }));
             } else if (system === 'ils') {
