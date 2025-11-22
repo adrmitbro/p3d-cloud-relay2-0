@@ -326,19 +326,49 @@ function getMobileAppHTML() {
             color: #167fac;
         }
         
+        /* Fixed Map Controls Layout */
         .map-controls {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 15px;
+            flex-direction: column;
             background: #0d0d0d;
             border-bottom: 1px solid #333;
             margin-bottom: 10px;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .map-controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .map-controls-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .map-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .map-buttons .btn {
+            width: auto;
+            padding: 8px 12px;
+            font-size: 12px;
+            margin: 0;
+            flex: 1;
+            min-width: 100px;
         }
         
         .zoom-indicator {
             color: #888;
             font-size: 13px;
+            background: #1a1a1a;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
         }
         
         .map-container {
@@ -388,6 +418,11 @@ function getMobileAppHTML() {
         
         .aircraft-list-item:hover {
             background: #1a1a1a;
+        }
+        
+        .aircraft-list-item.selected {
+            background: rgba(255, 0, 0, 0.2);
+            border-left: 3px solid #ff0000;
         }
         
         .aircraft-callsign {
@@ -480,6 +515,52 @@ function getMobileAppHTML() {
             color: #167fac;
             margin-bottom: 15px;
         }
+        
+        .route-badge {
+            display: inline-block;
+            background: #2d2d2d;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #222;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .detail-value {
+            color: #ccc;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        /* Custom aircraft icon styles */
+        .user-aircraft {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+            z-index: 1000;
+        }
+
+        .ai-aircraft {
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+            z-index: 900;
+        }
+
+        .ai-aircraft.selected {
+            animation: pulse 1.5s infinite;
+        }
     </style>
 </head>
 <body>
@@ -492,7 +573,7 @@ function getMobileAppHTML() {
         <div class='login-card'>
             <h2>Connect to Simulator</h2>
             <div class='info-box'>
-                Enter your Unique ID from the PC Server
+                Enter your Unique ID from PC Server
             </div>
             <input type='text' id='uniqueId' placeholder='Unique ID' autocapitalize='off'>
             <button class='btn btn-primary' onclick='connectToSim()'>Connect</button>
@@ -548,9 +629,13 @@ function getMobileAppHTML() {
 
         <div class='tab-content'>
             <div class='map-controls'>
-                <button id='followUserBtn' class='btn btn-secondary' onclick='centerOnUser()'>Follow Aircraft</button>
-                <button id='toggleLabelsBtn' class='btn btn-secondary' onclick='toggleAircraftLabels()'>Hide Labels</button>
-                <span id='zoomLevel' class='zoom-indicator'>Zoom: 7</span>
+                <div class='map-controls-row'>
+                    <div class='map-buttons'>
+                        <button id='followUserBtn' class='btn btn-secondary' onclick='centerOnUser()'>Follow Aircraft</button>
+                        <button id='toggleLabelsBtn' class='btn btn-secondary' onclick='toggleAircraftLabels()'>Hide Labels</button>
+                    </div>
+                    <span id='zoomLevel' class='zoom-indicator'>Zoom: 7</span>
+                </div>
             </div>
             
             <div class='map-container'>
@@ -887,6 +972,36 @@ function getMobileAppHTML() {
             btn.textContent = text || (state ? 'ON' : 'OFF');
         }
 
+        // Custom aircraft icon creation functions
+        function createUserAircraftIcon(heading) {
+            return L.divIcon({
+                html: \`<div class="user-aircraft" style="transform: rotate(\${heading}deg);">
+                         <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#FFD700" stroke="#000" stroke-width="0.5"/>
+                         </svg>
+                       </div>\`,
+                className: '',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+        }
+
+        function createAIAircraftIcon(heading, isSelected) {
+            const color = isSelected ? "#FF0000" : "#FFFFFF";
+            const size = isSelected ? 18 : 16;
+            
+            return L.divIcon({
+                html: \`<div class="ai-aircraft \${isSelected ? 'selected' : ''}" style="transform: rotate(\${heading}deg);">
+                         <svg width="\${size}" height="\${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="\${color}" stroke="#000" stroke-width="0.5"/>
+                         </svg>
+                       </div>\`,
+                className: '',
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2]
+            });
+        }
+
         function initMap() {
             map = L.map('map', {
                 center: [0, 0],
@@ -957,34 +1072,20 @@ function getMobileAppHTML() {
                 aircraftMarkers = [];
             }
             
-            // Add user aircraft marker
-            const userIcon = L.divIcon({
-                html: '<div style="font-size:24px;transform:rotate(' + heading + 'deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.8));">✈️</div>',
-                className: '',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-            });
-            
-            const userMarker = L.marker([lat, lon], { icon: userIcon }).addTo(map);
+            // Add user aircraft marker with custom yellow icon
+            const userMarker = L.marker([lat, lon], { icon: createUserAircraftIcon(heading) }).addTo(map);
             userMarker.bindPopup("You");
             aircraftMarkers.push(userMarker);
             
-            // Add AI aircraft markers
+            // Add AI aircraft markers with custom white/red icons
             aiAircraft.forEach(aircraft => {
-                const iconType = (selectedAircraft && 
+                const isSelected = selectedAircraft && 
                                 ((selectedAircraft.atcId && selectedAircraft.atcId === aircraft.atcId) || 
-                                 (!selectedAircraft.atcId && selectedAircraft.title === aircraft.title))) 
-                                ? "selected" : "ai";
+                                 (!selectedAircraft.atcId && selectedAircraft.title === aircraft.title));
                 
-                const icon = L.divIcon({
-                    html: '<div style="font-size:16px;transform:rotate(' + aircraft.heading + 'deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.8);' + 
-                          (iconType === "selected" ? "color:orange;" : "") + '">✈️</div>',
-                    className: '',
-                    iconSize: [16, 16],
-                    iconAnchor: [8, 8]
-                });
-                
-                const marker = L.marker([aircraft.latitude, aircraft.longitude], { icon: icon }).addTo(map);
+                const marker = L.marker([aircraft.latitude, aircraft.longitude], { 
+                    icon: createAIAircraftIcon(aircraft.heading, isSelected)
+                }).addTo(map);
                 
                 // Create popup content
                 let callsign = aircraft.atcId || "N/A";
@@ -1029,7 +1130,7 @@ function getMobileAppHTML() {
                 if (showAircraftLabels) {
                     const label = L.divIcon({
                         html: \`<div style="background:rgba(0,0,0,0.7);color:white;padding:2px 5px;border-radius:3px;font-size:11px;white-space:nowrap">
-                               \${aircraft.atcId || aircraft.title.substring(0, 10)}</div>\`,
+                                       \${aircraft.atcId || aircraft.title.substring(0, 10)}</div>\`,
                         className: '',
                         iconSize: [100, 20],
                         iconAnchor: [50, -10]
@@ -1070,9 +1171,26 @@ function getMobileAppHTML() {
                 \${flightInfo ? \`<p><strong>Flight:</strong> \${flightInfo}</p>\` : ""}
                 <p><strong>Aircraft:</strong> \${aircraft.atcModel || aircraft.atcType || aircraft.title}</p>
                 \${routeInfo ? \`<p><strong>Route:</strong> \${routeInfo}</p>\` : ""}
-                <p><strong>Speed:</strong> \${Math.round(aircraft.groundSpeed)} kts</p>
-                <p><strong>Altitude:</strong> \${Math.round(aircraft.altitude)} ft</p>
-                <p><strong>Distance:</strong> \${aircraft.distanceFromUser.toFixed(1)} nm</p>
+                <div class="detail-row">
+                    <span class="detail-label">Departure:</span>
+                    <span class="detail-value">\${aircraft.departureAirport || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Destination:</span>
+                    <span class="detail-value">\${aircraft.destinationAirport || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Speed:</span>
+                    <span class="detail-value">\${Math.round(aircraft.groundSpeed)} kts</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Altitude:</span>
+                    <span class="detail-value">\${Math.round(aircraft.altitude)} ft</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Distance:</span>
+                    <span class="detail-value">\${aircraft.distanceFromUser.toFixed(1)} nm</span>
+                </div>
             \`;
         }
 
@@ -1091,6 +1209,12 @@ function getMobileAppHTML() {
                 const callsign = aircraft.atcId || aircraft.title.substring(0, 15);
                 const item = document.createElement('div');
                 item.className = 'aircraft-list-item';
+                if (selectedAircraft && 
+                    ((selectedAircraft.atcId && selectedAircraft.atcId === aircraft.atcId) || 
+                     (!selectedAircraft.atcId && selectedAircraft.title === aircraft.title))) {
+                    item.classList.add('selected');
+                }
+                
                 item.innerHTML = \`
                     <div class="aircraft-callsign">\${callsign}</div>
                     <div class="aircraft-distance">\${aircraft.distanceFromUser.toFixed(1)} nm</div>
@@ -1103,6 +1227,7 @@ function getMobileAppHTML() {
                     document.getElementById('followUserBtn').textContent = 'Follow Aircraft';
                     updateAircraftDetails(aircraft);
                     updateMap(userLat, userLon, userHeading);
+                    updateNearbyAircraftList();
                 });
                 
                 list.appendChild(item);
@@ -1121,6 +1246,7 @@ function getMobileAppHTML() {
             document.getElementById('followUserBtn').textContent = 'Following';
             selectedAircraft = null;
             updateMap(userLat, userLon, userHeading);
+            updateNearbyAircraftList();
         }
 
         function unlockControls() {
