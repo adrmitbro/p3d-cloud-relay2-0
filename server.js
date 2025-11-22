@@ -214,7 +214,7 @@ function getMobileAppHTML() {
         .status.connected { background: #167fac; color: #fff; }
         .status.offline { background: #f44336; color: white; }
         .status.paused { 
-            background: #ff9800; 
+            background: #800000; 
             color: #000;
             display: none;
         }
@@ -262,11 +262,11 @@ function getMobileAppHTML() {
         .btn-primary:active { background: #1a8fd4; }
         .btn-secondary { background: #2d2d2d; color: white; border: 1px solid #444; }
         .btn-secondary:active { background: #3d3d3d; }
-        .btn-warning { background: #ff9800; color: #000; }
+        .btn-warning { background: #800000; color: #000; }
         .btn-danger { background: #f44336; color: white; }
         .btn:disabled { background: #333; opacity: 0.5; }
         .btn.paused { 
-            background: #ff9800; 
+            background: #800000; 
             color: #000;
             animation: pulse 1.5s infinite; 
         }
@@ -603,7 +603,7 @@ function getMobileAppHTML() {
     <div class='header'>
         <h1>Prepar3D Remote</h1>
         <div id='statusBadge' class='status offline'>Offline</div>
-        <div id='pauseBadge' class='status paused'>⏸️ Paused</div>
+        <div id='pauseBadge' class='status paused'>Paused</div>
     </div>
 
     <div id='loginScreen' class='login-screen'>
@@ -1507,6 +1507,7 @@ function updateAutopilotUI(data) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
