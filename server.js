@@ -181,6 +181,7 @@ function getMobileAppHTML() {
     <title>P3D Remote</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://fonts.cdnfonts.com/css/good-times" rel="stylesheet">  <!-- ADD THIS LINE -->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -195,22 +196,35 @@ function getMobileAppHTML() {
             box-shadow: 0 2px 10px rgba(0,0,0,0.5);
             border-bottom: 2px solid #167fac;
         }
-        .header h1 { 
-            font-size: 20px;
+.header h1 { 
+    font-size: 20px;
+    font-family: 'Good Times', sans-serif;
+    letter-spacing: 2px;
+    margin: 0;
+}
+        .header-info {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 10px;
+            margin-top: 5px;
         }
         .status {
             padding: 6px 12px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: bold;
-            margin-top: 5px;
             display: inline-block;
         }
         .status.connected { background: #167fac; color: #fff; }
         .status.offline { background: #f44336; color: white; }
+        .flight-plan {
+            color: #ccc;
+            font-size: 12px;
+            max-width: 70%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         
         .login-screen {
             padding: 20px;
@@ -594,7 +608,10 @@ function getMobileAppHTML() {
 <body>
     <div class='header'>
         <h1>Prepar3D Remote</h1>
-        <div id='statusBadge' class='status offline'>Offline</div>
+        <div class='header-info'>
+            <div id='flightPlan' class='flight-plan'>No Flight Plan</div>
+            <div id='statusBadge' class='status offline'>Offline</div>
+        </div>
     </div>
 
     <div id='loginScreen' class='login-screen'>
@@ -1027,18 +1044,22 @@ function getMobileAppHTML() {
                 document.getElementById('ete').textContent = 'Total ETE: --';
             }
 
-// ADD THIS DEBUG LINE
-console.log('Pause state received:', data.isPaused);
+            // Update flight plan title in header
+            if (data.flightPlanTitle) {
+                document.getElementById('flightPlan').textContent = 'C:fs9gps:' + data.flightPlanTitle;
+            } else {
+                document.getElementById('flightPlan').textContent = 'No Flight Plan';
+            }
 
-// Pause state
-const btnPause = document.getElementById('btnPause');
-if (data.isPaused) {
-    btnPause.textContent = '▶️ Resume';
-    btnPause.className = 'btn btn-warning';
-} else {
-    btnPause.textContent = '⏸️ Pause';
-    btnPause.className = 'btn btn-secondary';
-}
+            // Pause state
+            const btnPause = document.getElementById('btnPause');
+            if (data.isPaused) {
+                btnPause.textContent = '▶️ Resume';
+                btnPause.className = 'btn btn-warning';
+            } else {
+                btnPause.textContent = '⏸️ Pause';
+                btnPause.className = 'btn btn-secondary';
+            }
 
             // Update map if visible
             if (map && data.latitude && data.longitude) {
@@ -1046,45 +1067,44 @@ if (data.isPaused) {
             }
         }
 
-function updateAutopilotUI(data) {
-    updateToggle('apMaster', data.master);
-    updateToggle('apAlt', data.altitude);
-    updateToggle('apHdg', data.heading);
-    updateToggle('apVS', data.vs);
-    updateToggle('apSpeed', data.speed);
-    updateToggle('apApp', data.approach);
-    updateToggle('apNav', data.nav);
-    updateToggle('autoThrottle', data.throttle);
-    updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
-    updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'ON' : 'OFF');
-    
-    document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
-    
-    // Speedbrake
-    const spoilersBtn = document.getElementById('spoilers');
-    const spoilersActive = data.spoilers > 10;
-    spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
-    spoilersBtn.textContent = spoilersActive ? 'EXTENDED' : 'RETRACTED';
-    
-    // NAV/GPS toggle
-    const navBtn = document.getElementById('navMode');
-    navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
-    navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
-    
-    // Update lights and cabin controls - REMOVED lightCabin line
-    updateToggle('lightStrobe', data.lightStrobe);
-    updateToggle('lightPanel', data.lightPanel);
-    updateToggle('lightLanding', data.lightLanding);
-    updateToggle('lightTaxi', data.lightTaxi);
-    updateToggle('lightBeacon', data.lightBeacon);
-    updateToggle('lightNav', data.lightNav);
-    updateToggle('lightLogo', data.lightLogo);
-    updateToggle('lightWing', data.lightWing);
-    updateToggle('lightRecognition', data.lightRecognition);
-    // REMOVED: updateToggle('lightCabin', data.lightCabin);
-    updateToggle('noSmokingSwitch', data.noSmokingSwitch);
-    updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
-}
+        function updateAutopilotUI(data) {
+            updateToggle('apMaster', data.master);
+            updateToggle('apAlt', data.altitude);
+            updateToggle('apHdg', data.heading);
+            updateToggle('apVS', data.vs);
+            updateToggle('apSpeed', data.speed);
+            updateToggle('apApp', data.approach);
+            updateToggle('apNav', data.nav);
+            updateToggle('autoThrottle', data.throttle);
+            updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
+            updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'ON' : 'OFF');
+            
+            document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
+            
+            // Speedbrake
+            const spoilersBtn = document.getElementById('spoilers');
+            const spoilersActive = data.spoilers > 10;
+            spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
+            spoilersBtn.textContent = spoilersActive ? 'EXTENDED' : 'RETRACTED';
+            
+            // NAV/GPS toggle
+            const navBtn = document.getElementById('navMode');
+            navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
+            navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
+            
+            // Update lights and cabin controls
+            updateToggle('lightStrobe', data.lightStrobe);
+            updateToggle('lightPanel', data.lightPanel);
+            updateToggle('lightLanding', data.lightLanding);
+            updateToggle('lightTaxi', data.lightTaxi);
+            updateToggle('lightBeacon', data.lightBeacon);
+            updateToggle('lightNav', data.lightNav);
+            updateToggle('lightLogo', data.lightLogo);
+            updateToggle('lightWing', data.lightWing);
+            updateToggle('lightRecognition', data.lightRecognition);
+            updateToggle('noSmokingSwitch', data.noSmokingSwitch);
+            updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
+        }
 
         function updateToggle(id, state, text) {
             const btn = document.getElementById(id);
@@ -1488,8 +1508,3 @@ function updateAutopilotUI(data) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
-
-
-
-
-
