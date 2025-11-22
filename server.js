@@ -116,8 +116,7 @@ wss.on('connection', (ws, req) => {
               data.type === 'toggle_speedbrake' ||
               data.type === 'toggle_parking_brake' ||
               data.type === 'change_flaps' ||
-              data.type === 'throttle_control' ||
-              data.type === 'toggle_light') {
+              data.type === 'throttle_control') {
             if (!ws.hasControlAccess) {
               ws.send(JSON.stringify({ 
                 type: 'control_required',
@@ -800,60 +799,6 @@ function getMobileAppHTML() {
                         <button class='toggle-btn off' id='parkingBrake' onclick='toggleParkingBrake()'>OFF</button>
                     </div>
                 </div>
-
-                <div class='card'>
-                    <h3>Lights</h3>
-                    
-                    <div class='control-row'>
-                        <span class='control-label'>Strobe Lights</span>
-                        <button class='toggle-btn off' id='lightStrobe' onclick='toggleLight("strobe")'>OFF</button>
-                    </div>
-                    
-                    <div class='control-row'>
-                        <span class='control-label'>Panel Lights</span>
-                        <button class='toggle-btn off' id='lightPanel' onclick='toggleLight("panel")'>OFF</button>
-                    </div>
-                    
-                    <div class='control-row'>
-                        <span class='control-label'>Landing Lights</span>
-                        <button class='toggle-btn off' id='lightLanding' onclick='toggleLight("landing")'>OFF</button>
-                    </div>
-                    
-                    <div class='control-row'>
-                        <span class='control-label'>Taxi Lights</span>
-                        <button class='toggle-btn off' id='lightTaxi' onclick='toggleLight("taxi")'>OFF</button>
-                    </div>
-                    
-                    <div class='control-row'>
-                        <span class='control-label'>Beacon Lights</span>
-                        <button class='toggle-btn off' id='lightBeacon' onclick='toggleLight("beacon")'>OFF</button>
-                    </div>
-                    
-                    <div class='control-row'>
-                        <span class='control-label'>Nav Lights</span>
-                        <button class='toggle-btn off' id='lightNav' onclick='toggleLight("nav")'>OFF</button>
-                    </div>
-                    
-                    <div class='control-row'>
-                        <span class='control-label'>Logo Lights</span>
-                        <button class='toggle-btn off' id='lightLogo' onclick='toggleLight("logo")'>OFF</button>
-                    </div>
-                    
-                    <div class='control-row'>
-                        <span class='control-label'>Wing Lights</span>
-                        <button class='toggle-btn off' id='lightWing' onclick='toggleLight("wing")'>OFF</button>
-                    </div>
-                    
-                    <div class='control-row'>
-                        <span class='control-label'>Recognition Lights</span>
-                        <button class='toggle-btn off' id='lightRecognition' onclick='toggleLight("recognition")'>OFF</button>
-                    </div>
-                    
-                    <div class='control-row'>
-                        <span class='control-label'>Cabin Lights</span>
-                        <button class='toggle-btn off' id='lightCabin' onclick='toggleLight("cabin")'>OFF</button>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -1055,18 +1000,6 @@ function getMobileAppHTML() {
             const navBtn = document.getElementById('navMode');
             navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
             navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
-
-            // Update lights
-            updateToggle('lightStrobe', data.strobe);
-            updateToggle('lightPanel', data.panel);
-            updateToggle('lightLanding', data.landing);
-            updateToggle('lightTaxi', data.taxi);
-            updateToggle('lightBeacon', data.beacon);
-            updateToggle('lightNav', data.nav);
-            updateToggle('lightLogo', data.logo);
-            updateToggle('lightWing', data.wing);
-            updateToggle('lightRecognition', data.recognition);
-            updateToggle('lightCabin', data.cabin);
         }
 
         function updateToggle(id, state, text) {
@@ -1149,7 +1082,7 @@ function getMobileAppHTML() {
             map.on('click', function(e) {
                 // Check if clicking on an aircraft marker
                 if (e.originalEvent.target.closest('.leaflet-marker-icon')) {
-                    return; // Let aircraft click handler handle this
+                    return; // Let the aircraft click handler handle this
                 }
                 
                 // Clicked on empty map space - deselect aircraft
@@ -1445,10 +1378,6 @@ function getMobileAppHTML() {
 
         function changeFlaps(direction) {
             ws.send(JSON.stringify({ type: 'change_flaps', direction }));
-        }
-
-        function toggleLight(lightType) {
-            ws.send(JSON.stringify({ type: 'toggle_light', light: lightType }));
         }
 
         // Load saved ID
