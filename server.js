@@ -798,6 +798,73 @@ function getMobileAppHTML() {
                         <span class='control-label'>Parking Brake</span>
                         <button class='toggle-btn off' id='parkingBrake' onclick='toggleParkingBrake()'>OFF</button>
                     </div>
+                    <div class='card'>
+    <h3>Exterior Lights</h3>
+    
+    <div class='control-row'>
+        <span class='control-label'>Strobe Lights</span>
+        <button class='toggle-btn off' id='lightStrobe' onclick='toggleLight("strobe")'>OFF</button>
+    </div>
+    
+    <div class='control-row'>
+        <span class='control-label'>Landing Lights</span>
+        <button class='toggle-btn off' id='lightLanding' onclick='toggleLight("landing")'>OFF</button>
+    </div>
+    
+    <div class='control-row'>
+        <span class='control-label'>Taxi Lights</span>
+        <button class='toggle-btn off' id='lightTaxi' onclick='toggleLight("taxi")'>OFF</button>
+    </div>
+    
+    <div class='control-row'>
+        <span class='control-label'>Beacon Lights</span>
+        <button class='toggle-btn off' id='lightBeacon' onclick='toggleLight("beacon")'>OFF</button>
+    </div>
+    
+    <div class='control-row'>
+        <span class='control-label'>Nav Lights</span>
+        <button class='toggle-btn off' id='lightNav' onclick='toggleLight("nav")'>OFF</button>
+    </div>
+    
+    <div class='control-row'>
+        <span class='control-label'>Logo Lights</span>
+        <button class='toggle-btn off' id='lightLogo' onclick='toggleLight("logo")'>OFF</button>
+    </div>
+    
+    <div class='control-row'>
+        <span class='control-label'>Wing Lights</span>
+        <button class='toggle-btn off' id='lightWing' onclick='toggleLight("wing")'>OFF</button>
+    </div>
+    
+    <div class='control-row'>
+        <span class='control-label'>Recognition Lights</span>
+        <button class='toggle-btn off' id='lightRecognition' onclick='toggleLight("recognition")'>OFF</button>
+    </div>
+</div>
+
+<div class='card'>
+    <h3>Cabin & Interior</h3>
+    
+    <div class='control-row'>
+        <span class='control-label'>Panel Lights</span>
+        <button class='toggle-btn off' id='lightPanel' onclick='toggleLight("panel")'>OFF</button>
+    </div>
+    
+    <div class='control-row'>
+        <span class='control-label'>Cabin Lights</span>
+        <button class='toggle-btn off' id='lightCabin' onclick='toggleLight("cabin")'>OFF</button>
+    </div>
+    
+    <div class='control-row'>
+        <span class='control-label'>No Smoking Sign</span>
+        <button class='toggle-btn off' id='noSmokingSwitch' onclick='toggleCabin("nosmoking")'>OFF</button>
+    </div>
+    
+    <div class='control-row'>
+        <span class='control-label'>Seatbelts Sign</span>
+        <button class='toggle-btn off' id='seatbeltsSwitch' onclick='toggleCabin("seatbelts")'>OFF</button>
+    </div>
+</div>
                 </div>
             </div>
         </div>
@@ -1000,6 +1067,20 @@ function getMobileAppHTML() {
             const navBtn = document.getElementById('navMode');
             navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
             navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
+
+                // ADD THESE NEW LINES FOR LIGHTS AND CABIN:
+    updateToggle('lightStrobe', data.lightStrobe);
+    updateToggle('lightPanel', data.lightPanel);
+    updateToggle('lightLanding', data.lightLanding);
+    updateToggle('lightTaxi', data.lightTaxi);
+    updateToggle('lightBeacon', data.lightBeacon);
+    updateToggle('lightNav', data.lightNav);
+    updateToggle('lightLogo', data.lightLogo);
+    updateToggle('lightWing', data.lightWing);
+    updateToggle('lightRecognition', data.lightRecognition);
+    updateToggle('lightCabin', data.lightCabin);
+    updateToggle('noSmokingSwitch', data.noSmokingSwitch);
+    updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
         }
 
         function updateToggle(id, state, text) {
@@ -1380,6 +1461,22 @@ function getMobileAppHTML() {
             ws.send(JSON.stringify({ type: 'change_flaps', direction }));
         }
 
+        function toggleLight(lightType) {
+    ws.send(JSON.stringify({ type: 'toggle_light', lightType: lightType }));
+}
+
+function toggleCabin(cabinType) {
+    ws.send(JSON.stringify({ type: 'toggle_cabin', cabinType: cabinType }));
+}
+else if (data.type.includes('toggle_light') || data.type.includes('toggle_cabin')) {
+    if (!ws.hasControlAccess) {
+        ws.send(JSON.stringify({ 
+            type: 'control_required',
+            message: 'Enter password to access controls'
+        }));
+        return;
+    }
+}
         // Load saved ID
         window.onload = () => {
             const savedId = localStorage.getItem('p3d_unique_id');
@@ -1395,3 +1492,4 @@ function getMobileAppHTML() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
