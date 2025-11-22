@@ -857,11 +857,6 @@ function getMobileAppHTML() {
                     </div>
                     
                     <div class='control-row'>
-                        <span class='control-label'>Cabin Lights</span>
-                        <button class='toggle-btn off' id='lightCabin' onclick='toggleLight("cabin")'>OFF</button>
-                    </div>
-                    
-                    <div class='control-row'>
                         <span class='control-label'>No Smoking Sign</span>
                         <button class='toggle-btn off' id='noSmokingSwitch' onclick='toggleCabin("nosmoking")'>OFF</button>
                     </div>
@@ -1490,3 +1485,4 @@ function getMobileAppHTML() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
