@@ -201,29 +201,16 @@ function getMobileAppHTML() {
             align-items: center;
             gap: 10px;
         }
-        .header-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 5px;
-        }
         .status {
             padding: 6px 12px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: bold;
+            margin-top: 5px;
             display: inline-block;
         }
         .status.connected { background: #167fac; color: #fff; }
         .status.offline { background: #f44336; color: white; }
-        .flight-plan {
-            color: #ccc;
-            font-size: 12px;
-            max-width: 70%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
         
         .login-screen {
             padding: 20px;
@@ -607,10 +594,7 @@ function getMobileAppHTML() {
 <body>
     <div class='header'>
         <h1>Prepar3D Remote</h1>
-        <div class='header-info'>
-            <div id='flightPlan' class='flight-plan'>No Flight Plan</div>
-            <div id='statusBadge' class='status offline'>Offline</div>
-        </div>
+        <div id='statusBadge' class='status offline'>Offline</div>
     </div>
 
     <div id='loginScreen' class='login-screen'>
@@ -1043,22 +1027,18 @@ function getMobileAppHTML() {
                 document.getElementById('ete').textContent = 'Total ETE: --';
             }
 
-            // Update flight plan title in header
-            if (data.flightPlanTitle) {
-                document.getElementById('flightPlan').textContent = 'GPS IS ACTIVE FLIGHT PLAN';
-            } else {
-                document.getElementById('flightPlan').textContent = 'No Flight Plan';
-            }
+// ADD THIS DEBUG LINE
+console.log('Pause state received:', data.isPaused);
 
-            // Pause state
-            const btnPause = document.getElementById('btnPause');
-            if (data.isPaused) {
-                btnPause.textContent = '▶️ Resume';
-                btnPause.className = 'btn btn-warning';
-            } else {
-                btnPause.textContent = '⏸️ Pause';
-                btnPause.className = 'btn btn-secondary';
-            }
+// Pause state
+const btnPause = document.getElementById('btnPause');
+if (data.isPaused) {
+    btnPause.textContent = '▶️ Resume';
+    btnPause.className = 'btn btn-warning';
+} else {
+    btnPause.textContent = '⏸️ Pause';
+    btnPause.className = 'btn btn-secondary';
+}
 
             // Update map if visible
             if (map && data.latitude && data.longitude) {
@@ -1066,44 +1046,45 @@ function getMobileAppHTML() {
             }
         }
 
-        function updateAutopilotUI(data) {
-            updateToggle('apMaster', data.master);
-            updateToggle('apAlt', data.altitude);
-            updateToggle('apHdg', data.heading);
-            updateToggle('apVS', data.vs);
-            updateToggle('apSpeed', data.speed);
-            updateToggle('apApp', data.approach);
-            updateToggle('apNav', data.nav);
-            updateToggle('autoThrottle', data.throttle);
-            updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
-            updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'ON' : 'OFF');
-            
-            document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
-            
-            // Speedbrake
-            const spoilersBtn = document.getElementById('spoilers');
-            const spoilersActive = data.spoilers > 10;
-            spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
-            spoilersBtn.textContent = spoilersActive ? 'EXTENDED' : 'RETRACTED';
-            
-            // NAV/GPS toggle
-            const navBtn = document.getElementById('navMode');
-            navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
-            navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
-            
-            // Update lights and cabin controls
-            updateToggle('lightStrobe', data.lightStrobe);
-            updateToggle('lightPanel', data.lightPanel);
-            updateToggle('lightLanding', data.lightLanding);
-            updateToggle('lightTaxi', data.lightTaxi);
-            updateToggle('lightBeacon', data.lightBeacon);
-            updateToggle('lightNav', data.lightNav);
-            updateToggle('lightLogo', data.lightLogo);
-            updateToggle('lightWing', data.lightWing);
-            updateToggle('lightRecognition', data.lightRecognition);
-            updateToggle('noSmokingSwitch', data.noSmokingSwitch);
-            updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
-        }
+function updateAutopilotUI(data) {
+    updateToggle('apMaster', data.master);
+    updateToggle('apAlt', data.altitude);
+    updateToggle('apHdg', data.heading);
+    updateToggle('apVS', data.vs);
+    updateToggle('apSpeed', data.speed);
+    updateToggle('apApp', data.approach);
+    updateToggle('apNav', data.nav);
+    updateToggle('autoThrottle', data.throttle);
+    updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
+    updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'ON' : 'OFF');
+    
+    document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
+    
+    // Speedbrake
+    const spoilersBtn = document.getElementById('spoilers');
+    const spoilersActive = data.spoilers > 10;
+    spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
+    spoilersBtn.textContent = spoilersActive ? 'EXTENDED' : 'RETRACTED';
+    
+    // NAV/GPS toggle
+    const navBtn = document.getElementById('navMode');
+    navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
+    navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
+    
+    // Update lights and cabin controls - REMOVED lightCabin line
+    updateToggle('lightStrobe', data.lightStrobe);
+    updateToggle('lightPanel', data.lightPanel);
+    updateToggle('lightLanding', data.lightLanding);
+    updateToggle('lightTaxi', data.lightTaxi);
+    updateToggle('lightBeacon', data.lightBeacon);
+    updateToggle('lightNav', data.lightNav);
+    updateToggle('lightLogo', data.lightLogo);
+    updateToggle('lightWing', data.lightWing);
+    updateToggle('lightRecognition', data.lightRecognition);
+    // REMOVED: updateToggle('lightCabin', data.lightCabin);
+    updateToggle('noSmokingSwitch', data.noSmokingSwitch);
+    updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
+}
 
         function updateToggle(id, state, text) {
             const btn = document.getElementById(id);
@@ -1507,3 +1488,8 @@ function getMobileAppHTML() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
+
+
+
+
