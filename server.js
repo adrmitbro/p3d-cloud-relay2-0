@@ -1007,14 +1007,14 @@ case 'ai_traffic':
             // Add bearing information
             document.getElementById('wpBearing').textContent = 'Bearing: ' + (data.bearingToWaypoint ? Math.round(data.bearingToWaypoint) + '°' : '--°');
             
-            // Fixed ETE for next waypoint - use waypointEte instead of total ETE
-            if (data.waypointEte && data.waypointEte > 0) {
-                const wpMinutes = Math.floor(data.waypointEte / 60);
-                const wpSeconds = Math.floor(data.waypointEte % 60);
-                document.getElementById('wpEte').textContent = 'ETE: ' + wpMinutes + 'm ' + wpSeconds + 's';
-            } else {
-                document.getElementById('wpEte').textContent = 'ETE: --';
-            }
+// Fixed ETE for next waypoint - use waypointEte instead of total ETE
+if (data.waypointEte && data.waypointEte > 0) {
+    const wpHours = Math.floor(data.waypointEte / 3600);
+    const wpMinutes = Math.floor((data.waypointEte % 3600) / 60);
+    document.getElementById('wpEte').textContent = 'ETE: ' + (wpHours > 0 ? wpHours + 'h ' + wpMinutes + 'm' : wpMinutes + 'm');
+} else {
+    document.getElementById('wpEte').textContent = 'ETE: --';
+}
             
             // Total distance to destination
             if (data.totalDistance && data.totalDistance > 0) {
@@ -1498,6 +1498,7 @@ function updateAutopilotUI(data) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
