@@ -1447,6 +1447,7 @@ function getMobileAppHTML() {
 </html>`;
 }
 
+// FIX: Replaced template literals with string concatenation to avoid encoding issues.
 server.listen(PORT, () => {
-  console.log(\`P3D Remote Cloud Relay running on port \${PORT}\`);
+  console.log('P3D Remote Cloud Relay running on port ' + PORT);
 });
