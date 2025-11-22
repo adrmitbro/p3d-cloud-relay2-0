@@ -606,7 +606,6 @@ function getMobileAppHTML() {
                 <div class='data-label'>Next Waypoint</div>
                 <div class='data-value' style='font-size: 18px;' id='nextWaypoint'>--</div>
                 <div style='margin-top: 8px; color: #888; font-size: 13px;' id='wpDistance'>Distance: --</div>
-                <div style='color: #888; font-size: 13px;' id='wpBearing'>Bearing: --</div>
                 <div style='color: #888; font-size: 13px;' id='wpEte'>ETE: --</div>
             </div>
 
@@ -918,25 +917,14 @@ function getMobileAppHTML() {
             document.getElementById('nextWaypoint').textContent = data.nextWaypoint || 'No Active Waypoint';
             document.getElementById('wpDistance').textContent = 'Distance: ' + (data.distanceToWaypoint ? data.distanceToWaypoint.toFixed(1) + ' nm' : '--');
             
-            // Fixed: Check for waypointEte first, then fallback to ete for next waypoint
+            // Fixed ETE for next waypoint - use waypointEte instead of total ETE
             if (data.waypointEte && data.waypointEte > 0) {
                 const wpMinutes = Math.floor(data.waypointEte / 60);
                 const wpSeconds = Math.floor(data.waypointEte % 60);
                 document.getElementById('wpEte').textContent = 'ETE: ' + wpMinutes + 'm ' + wpSeconds + 's';
-            } else if (data.ete && data.ete > 0) {
-                // Fallback: Calculate approximate time to next waypoint based on total ETE and distance ratio
-                const totalMinutes = data.ete / 60;
-                const wpDistance = data.distanceToWaypoint || 1;
-                const totalDistance = data.totalDistance || 1;
-                const wpMinutes = Math.floor(totalMinutes * (wpDistance / totalDistance));
-                const wpSeconds = Math.floor((totalMinutes * (wpDistance / totalDistance) * 60) % 60);
-                document.getElementById('wpEte').textContent = 'ETE: ' + wpMinutes + 'm ' + wpSeconds + 's';
             } else {
                 document.getElementById('wpEte').textContent = 'ETE: --';
             }
-            
-            // Added next waypoint bearing
-            document.getElementById('wpBearing').textContent = 'Bearing: ' + (data.waypointBearing ? Math.round(data.waypointBearing) + '°' : '--');
             
             // Total distance to destination
             if (data.totalDistance && data.totalDistance > 0) {
@@ -1008,7 +996,7 @@ function getMobileAppHTML() {
             return L.divIcon({
                 html: \`<div class="user-aircraft" style="transform: rotate(\${heading}deg);">
                          <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#FFD700" stroke="#000" stroke-width="0.5"/>
+                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#FFD700" stroke="#000" stroke-width="0.5"/>
                          </svg>
                        </div>\`,
                 className: '',
@@ -1024,7 +1012,7 @@ function getMobileAppHTML() {
             return L.divIcon({
                 html: \`<div class="ai-aircraft \${isSelected ? 'selected' : ''}" style="transform: rotate(\${heading}deg);">
                          <svg width="\${size}" height="\${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="\${color}" stroke="#000" stroke-width="0.5"/>
+                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="\${color}" stroke="#000" stroke-width="0.5"/>
                          </svg>
                        </div>\`,
                 className: '',
@@ -1056,7 +1044,7 @@ function getMobileAppHTML() {
                     isDragging = true;
                     mapDragStart = e.latlng;
                     followUser = false;
-                    updateFollowButton();
+                    document.getElementById('followUserBtn').textContent = 'Follow Aircraft';
                 }
             });
             
@@ -1076,7 +1064,7 @@ function getMobileAppHTML() {
             map.on('click', function(e) {
                 // Check if clicking on an aircraft marker
                 if (e.originalEvent.target.closest('.leaflet-marker-icon')) {
-                    return; // Let's the aircraft click handler handle this
+                    return; // Let the aircraft click handler handle this
                 }
                 
                 // Clicked on empty map space - deselect aircraft
@@ -1129,7 +1117,7 @@ function getMobileAppHTML() {
             aiAircraft.forEach(aircraft => {
                 const isSelected = selectedAircraft && 
                                 ((selectedAircraft.atcId && selectedAircraft.atcId === aircraft.atcId) || 
-                                 (!selectedAircraft.atcId && selectedAircraft.title === aircraft.title)));
+                                 (!selectedAircraft.atcId && selectedAircraft.title === aircraft.title));
                 
                 const marker = L.marker([aircraft.latitude, aircraft.longitude], { 
                     icon: createAIAircraftIcon(aircraft.heading, isSelected)
@@ -1273,7 +1261,7 @@ function getMobileAppHTML() {
                     selectedAircraft = aircraft;
                     map.setView([aircraft.latitude, aircraft.longitude], 10);
                     followUser = false;
-                    updateFollowButton();
+                    document.getElementById('followUserBtn').textContent = 'Follow Aircraft';
                     updateAircraftDetails(aircraft);
                     updateMap(userLat, userLon, userHeading);
                     updateNearbyAircraftList();
@@ -1281,15 +1269,6 @@ function getMobileAppHTML() {
                 
                 list.appendChild(item);
             });
-        }
-
-        function updateFollowButton() {
-            const btn = document.getElementById('followUserBtn');
-            if (followUser) {
-                btn.textContent = 'Following';
-            } else {
-                btn.textContent = 'Follow Aircraft';
-            }
         }
 
         function toggleAircraftLabels() {
@@ -1301,7 +1280,7 @@ function getMobileAppHTML() {
         function centerOnUser() {
             followUser = true;
             mapZoom = 7;
-            updateFollowButton();
+            document.getElementById('followUserBtn').textContent = 'Following';
             selectedAircraft = null;
             updateMap(userLat, userLon, userHeading);
             updateNearbyAircraftList();
