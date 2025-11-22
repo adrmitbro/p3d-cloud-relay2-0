@@ -1415,10 +1415,34 @@ function updateAutopilotUI(data) {
         }
 
 function saveGame() {
+    // Disable the save button
+    const saveBtn = document.querySelector('button[onclick="saveGame()"]');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '💾 Saving...';
+    }
+    
     ws.send(JSON.stringify({ type: 'save_game' }));
     
     // Show progress popup
     showSaveProgress();
+    
+    // Keep button disabled for 60 seconds
+    let countdown = 60;
+    const disableInterval = setInterval(() => {
+        countdown--;
+        if (saveBtn) {
+            saveBtn.textContent = `💾 Wait ${countdown}s`;
+        }
+        
+        if (countdown <= 0) {
+            clearInterval(disableInterval);
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '💾 Save Flight';
+            }
+        }
+    }, 1000);
 }
 
 function showSaveProgress() {
@@ -1569,6 +1593,7 @@ function closeSaveProgress(success, filename) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
