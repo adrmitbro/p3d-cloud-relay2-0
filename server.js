@@ -178,9 +178,10 @@ function getMobileAppHTML() {
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>P3D Remote</title>
+<title>P3D Remote</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://fonts.cdnfonts.com/css/good-times-2" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -195,11 +196,12 @@ function getMobileAppHTML() {
             box-shadow: 0 2px 10px rgba(0,0,0,0.5);
             border-bottom: 2px solid #167fac;
         }
-        .header h1 { 
+.header h1 { 
             font-size: 20px;
             display: flex;
             align-items: center;
             gap: 10px;
+            font-family: 'Good Times', sans-serif;
         }
         .status {
             padding: 6px 12px;
@@ -1500,6 +1502,7 @@ function updateAutopilotUI(data) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
