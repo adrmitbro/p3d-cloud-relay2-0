@@ -745,7 +745,6 @@ function updateAutopilotUI(data) {
             updateToggle('apSpeed', data.speed);
             updateToggle('apApp', data.approach);
             updateToggle('apNav', data.nav); // LOC hold - will show ON when active
-            updateToggle('apBackcourse', data.backcourse);
             updateToggle('autoThrottle', data.throttle);
             updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
             
@@ -900,4 +899,5 @@ function updateAutopilotUI(data) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
