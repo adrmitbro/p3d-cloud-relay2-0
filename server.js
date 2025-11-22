@@ -943,7 +943,7 @@ function getMobileAppHTML() {
         }
 
         function handleMessage(data) {
-            switch(data.type) {
+switch(data.type) {
                 case 'connected':
                     document.getElementById('loginScreen').classList.add('hidden');
                     document.getElementById('mainApp').classList.remove('hidden');
@@ -966,19 +966,24 @@ function getMobileAppHTML() {
                     
                 case 'control_required':
                     if (document.getElementById('controlLock').classList.contains('hidden')) {
+                        // Show password prompt without closing app
+                        document.getElementById('controlLock').classList.remove('hidden');
+                        document.getElementById('controlPanel').classList.add('hidden');
+                        document.getElementById('controlPassword').value = '';
                         alert(data.message);
                     }
                     break;
                     
                 case 'flight_data':
                     updateFlightData(data.data);
+                    console.log('Pause state received:', data.data.isPaused); // DEBUG
                     break;
                     
                 case 'autopilot_state':
                     updateAutopilotUI(data.data);
                     break;
                     
-                case 'ai_traffic':
+case 'ai_traffic':
                     aiAircraft = data.data;
                     updateNearbyAircraftList();
                     if (map) {
@@ -988,6 +993,11 @@ function getMobileAppHTML() {
                     
                 case 'pc_offline':
                     updateStatus('offline');
+                    // Reset control access when PC goes offline
+                    hasControl = false;
+                    document.getElementById('controlLock').classList.remove('hidden');
+                    document.getElementById('controlPanel').classList.add('hidden');
+                    document.getElementById('controlPassword').value = '';
                     break;
             }
         }
@@ -1502,6 +1512,7 @@ function updateAutopilotUI(data) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
