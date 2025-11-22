@@ -1422,23 +1422,11 @@ function saveGame() {
 }
 
 function showSaveProgress() {
-    // Create progress overlay
     const overlay = document.createElement('div');
     overlay.id = 'saveProgressOverlay';
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-    `;
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10000;';
     
-    overlay.innerHTML = `
+    overlay.innerHTML = \`
         <div style="background: #1a1a1a; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #167fac;">
             <div style="font-size: 40px; margin-bottom: 15px;">💾</div>
             <h3 style="margin: 0 0 10px 0; color: #167fac;">Saving Flight...</h3>
@@ -1449,11 +1437,10 @@ function showSaveProgress() {
                 </div>
             </div>
         </div>
-    `;
+    \`;
     
     document.body.appendChild(overlay);
     
-    // Animate progress bar
     let progress = 0;
     const progressBar = document.getElementById('saveProgressBar');
     const interval = setInterval(() => {
@@ -1463,7 +1450,6 @@ function showSaveProgress() {
         }
     }, 200);
     
-    // Store interval ID for cleanup
     overlay.dataset.intervalId = interval;
 }
 
@@ -1590,6 +1576,7 @@ function closeSaveProgress(success, filename) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
