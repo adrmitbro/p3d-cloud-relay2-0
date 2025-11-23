@@ -748,13 +748,14 @@ function getMobileAppHTML() {
 
         <div class='tab-content'>
             <div class='map-controls'>
-                <div class='map-controls-row'>
-                    <div class='map-buttons'>
-                        <button id='followUserBtn' class='btn btn-secondary' onclick='toggleFollowUser()'>Follow Aircraft</button>
-                        <button id='toggleLabelsBtn' class='btn btn-secondary' onclick='toggleAircraftLabels()'>Hide Labels</button>
-                    </div>
-                    <span id='zoomLevel' class='zoom-indicator'>Zoom: 7</span>
-                </div>
+<div class='map-controls-row'>
+    <div class='map-buttons'>
+        <button id='followUserBtn' class='btn btn-secondary' onclick='toggleFollowUser()'>Follow Aircraft</button>
+        <button id='toggleLabelsBtn' class='btn btn-secondary' onclick='toggleAircraftLabels()'>Hide Labels</button>
+        <button id='toggleFlightPlanBtn' class='btn btn-secondary' onclick='toggleFlightPlan()'>Show Flight Plan</button>
+    </div>
+    <span id='zoomLevel' class='zoom-indicator'>Zoom: 7</span>
+</div>
             </div>
             
             <div class='map-container'>
@@ -1004,6 +1005,7 @@ function getMobileAppHTML() {
     </div>
 
     <script>
+    let showFlightPlan = true;
         let ws = null;
         let map = null;
         let aircraftMarkers = [];
@@ -1027,18 +1029,23 @@ function getMobileAppHTML() {
         let flightPlanPolyline = null;
         let flightPlanWaypoints = [];
 
-        function switchTab(index) {
-            document.querySelectorAll('.tab').forEach((tab, i) => {
-                tab.classList.toggle('active', i === index);
-            });
-            document.querySelectorAll('.tab-content').forEach((content, i) => {
-                content.classList.toggle('active', i === index);
-            });
-            
-            if (index === 1 && !map) {
-                setTimeout(initMap, 100);
-            }
-        }
+function switchTab(index) {
+    document.querySelectorAll('.tab').forEach((tab, i) => {
+        tab.classList.toggle('active', i === index);
+    });
+    document.querySelectorAll('.tab-content').forEach((content, i) => {
+        content.classList.toggle('active', i === index);
+    });
+    
+    if (index === 1 && !map) {
+        setTimeout(initMap, 100);
+    }
+    
+    // ADD THIS: Request flight plan when map tab is opened
+    if (index === 1) {
+        requestFlightPlan();
+    }
+}
 
         function connectToSim() {
             uniqueId = document.getElementById('uniqueId').value.trim();
@@ -1775,6 +1782,12 @@ function requestFlightPlan() {
     }
 }
 
+function toggleFlightPlan() {
+    showFlightPlan = !showFlightPlan;
+    document.getElementById('toggleFlightPlanBtn').textContent = showFlightPlan ? 'Hide Flight Plan' : 'Show Flight Plan';
+    updateFlightPlanLine();
+}
+
 function updateFlightPlanLine() {
     if (!map) return;
     
@@ -1784,8 +1797,8 @@ function updateFlightPlanLine() {
         flightPlanPolyline = null;
     }
     
-    // Draw new line if we have waypoints
-    if (flightPlanWaypoints.length > 1) {
+    // Draw new line if we have waypoints AND toggle is on
+    if (showFlightPlan && flightPlanWaypoints.length > 1) {
         flightPlanPolyline = L.polyline(flightPlanWaypoints, {
             color: '#00ED00',
             weight: 3,
@@ -1808,6 +1821,7 @@ function updateFlightPlanLine() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
