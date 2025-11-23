@@ -215,7 +215,7 @@ function getMobileAppHTML() {
         .status.offline { background: #f44336; color: white; }
 .status.paused { 
     background: #800000; 
-    color: #fff;  /* Changed from #000 to #fff */
+    color: #fff;
     display: none;
 }
         .status.paused.visible { display: inline-block; }
@@ -262,7 +262,7 @@ function getMobileAppHTML() {
         .btn-primary:active { background: #1a8fd4; }
         .btn-secondary { background: #2d2d2d; color: white; border: 1px solid #444; }
         .btn-secondary:active { background: #3d3d3d; }
-        .btn-warning { background: #800000; color: #fff; }  /* Changed from #000 to #fff */
+        .btn-warning { background: #800000; color: #fff; }
         .btn-danger { background: #f44336; color: white; }
         .btn:disabled { background: #333; opacity: 0.5; }
 
@@ -330,7 +330,6 @@ function getMobileAppHTML() {
             color: #167fac;
         }
         
-        /* Fixed Map Controls Layout */
         .map-controls {
             display: flex;
             flex-direction: column;
@@ -388,7 +387,6 @@ function getMobileAppHTML() {
             border: 1px solid #333;
         }
         
-        /* Fixed Aircraft Panel Layout */
         .aircraft-panel {
             display: flex;
             flex-direction: column;
@@ -556,7 +554,6 @@ function getMobileAppHTML() {
     color: #fff;
 }
 
-/* Compact Summary Styles */
 .summary-container {
     background: #0d0d0d;
     border-radius: 8px;
@@ -655,7 +652,6 @@ function getMobileAppHTML() {
             font-weight: bold;
         }
         
-        /* Custom aircraft icon styles */
         .user-aircraft {
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
             z-index: 1000;
@@ -670,7 +666,6 @@ function getMobileAppHTML() {
             animation: pulse 1.5s infinite;
         }
 
-        /* Waypoint info row styling */
         .waypoint-info-row {
             display: flex;
             justify-content: space-between;
@@ -802,7 +797,6 @@ function getMobileAppHTML() {
                     </div>
                 </div>
 
-                <!-- Compact Summary Section -->
                 <div class='card'>
                     <h3 style='margin-bottom: 10px;'>Summary</h3>
                     <div class='summary-container'>
@@ -884,7 +878,8 @@ function getMobileAppHTML() {
                         <button class='btn btn-primary' onclick='setSpeed()'>Set</button>
                     </div>
                     
-                    <div class='control-row'>
+                    <div class='control-
+                    row'>
                         <span class='control-label'>Heading Hold</span>
                         <button class='toggle-btn off' id='apHdg' onclick='toggleAP("heading")'>OFF</button>
                     </div>
@@ -942,7 +937,6 @@ function getMobileAppHTML() {
                     </div>
                 </div>
                 
-                <!-- ===== Exterior Lights Card ===== -->
                 <div class='card'>
                     <h3>Exterior Lights</h3>
                     
@@ -987,7 +981,6 @@ function getMobileAppHTML() {
                     </div>
                 </div>
                 
-                <!-- ===== Cabin & Interior Card ===== -->
                 <div class='card'>
                     <h3>Cabin & Interior</h3>
                     
@@ -1019,7 +1012,7 @@ function getMobileAppHTML() {
         let mapCenterLat = 0;
         let mapCenterLon = 0;
         let mapZoom = 7;
-        let followUser = false; // Set to false by default
+        let followUser = false;
         let mapDragStart = null;
         let isDragging = false;
         let showAircraftLabels = true;
@@ -1030,7 +1023,7 @@ function getMobileAppHTML() {
         let userLon = 0;
         let userHeading = 0;
         let currentFlightData = {};
-        let mapInitialized = false; // Flag to track if map has been centered once
+        let mapInitialized = false;
 
         function switchTab(index) {
             document.querySelectorAll('.tab').forEach((tab, i) => {
@@ -1089,7 +1082,8 @@ function getMobileAppHTML() {
                 
                 case 'save_error':
                     closeSaveProgress(false, '');
-                    break;    
+                    break;
+                    
                 case 'error':
                     alert(data.message);
                     break;
@@ -1106,7 +1100,6 @@ function getMobileAppHTML() {
                     
                 case 'control_required':
                     if (document.getElementById('controlLock').classList.contains('hidden')) {
-                        // Show password prompt without closing app
                         document.getElementById('controlLock').classList.remove('hidden');
                         document.getElementById('controlPanel').classList.add('hidden');
                         document.getElementById('controlPassword').value = '';
@@ -1117,7 +1110,6 @@ function getMobileAppHTML() {
                 case 'flight_data':
                     currentFlightData = data.data;
                     updateFlightData(data.data);
-                    console.log('Pause state received:', data.data.isPaused); // DEBUG
                     break;
                     
                 case 'autopilot_state':
@@ -1150,14 +1142,10 @@ function getMobileAppHTML() {
             document.getElementById('heading').textContent = Math.round(data.heading) + '°';
             document.getElementById('vs').textContent = Math.round(data.verticalSpeed);
             
-            // Next waypoint info
             document.getElementById('nextWaypoint').textContent = data.nextWaypoint || 'No Active Waypoint';
             document.getElementById('wpDistance').textContent = 'Distance: ' + (data.distanceToWaypoint ? data.distanceToWaypoint.toFixed(1) + ' nm' : '--');
-            
-            // Add bearing information
             document.getElementById('wpBearing').textContent = 'Bearing: ' + (data.bearingToWaypoint ? Math.round(data.bearingToWaypoint) + '°' : '--°');
             
-            // Fixed ETE for next waypoint - use waypointEte instead of total ETE
             if (data.waypointEte && data.waypointEte > 0) {
                 const wpHours = Math.floor(data.waypointEte / 3600);
                 const wpMinutes = Math.floor((data.waypointEte % 3600) / 60);
@@ -1166,14 +1154,12 @@ function getMobileAppHTML() {
                 document.getElementById('wpEte').textContent = 'ETE: --';
             }
             
-            // Total distance to destination
             if (data.totalDistance && data.totalDistance > 0) {
                 document.getElementById('distance').textContent = data.totalDistance.toFixed(1);
             } else {
                 document.getElementById('distance').textContent = '--';
             }
             
-            // Total ETE
             if (data.ete && data.ete > 0) {
                 const hours = Math.floor(data.ete / 3600);
                 const minutes = Math.floor((data.ete % 3600) / 60);
@@ -1182,7 +1168,6 @@ function getMobileAppHTML() {
                 document.getElementById('ete').textContent = 'Total ETE: --';
             }
 
-            // Pause state - update badge visibility
             const pauseBadge = document.getElementById('pauseBadge');
             if (data.isPaused) {
                 pauseBadge.classList.add('visible');
@@ -1190,7 +1175,6 @@ function getMobileAppHTML() {
                 pauseBadge.classList.remove('visible');
             }
 
-            // Pause button
             const btnPause = document.getElementById('btnPause');
             if (data.isPaused) {
                 btnPause.textContent = '▶️ Resume';
@@ -1200,7 +1184,6 @@ function getMobileAppHTML() {
                 btnPause.className = 'btn btn-secondary';
             }
 
-            // Update map if visible
             if (map && data.latitude && data.longitude) {
                 updateMap(data.latitude, data.longitude, data.heading);
             }
@@ -1220,18 +1203,15 @@ function getMobileAppHTML() {
             
             document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
             
-            // Speedbrake
             const spoilersBtn = document.getElementById('spoilers');
             const spoilersActive = data.spoilers > 10;
             spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
             spoilersBtn.textContent = spoilersActive ? 'EXTENDED' : 'RETRACTED';
             
-            // NAV/GPS toggle
             const navBtn = document.getElementById('navMode');
             navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
             navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
             
-            // Update lights and cabin controls
             updateToggle('lightStrobe', data.lightStrobe);
             updateToggle('lightPanel', data.lightPanel);
             updateToggle('lightLanding', data.lightLanding);
@@ -1244,34 +1224,25 @@ function getMobileAppHTML() {
             updateToggle('noSmokingSwitch', data.noSmokingSwitch);
             updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
             
-            // Update the summary section with autopilot target values
             updateFlightSummary(data);
             updateAutopilotStatus(data);
         }
 
-        // Add this function to update summary section with autopilot targets
         function updateFlightSummary(data) {
-            // Use autopilot target values, not current aircraft values
-            // Speed: (A:Autopilot airspeed hold var,knots)
             const speedValue = data.apSpeed !== undefined ? Math.round(data.apSpeed) : '--';
             document.getElementById('summarySpeed').textContent = speedValue;
             
-            // Heading: (A:Autopilot heading lock dir, degrees)
             const headingValue = data.apHeading !== undefined ? Math.round(data.apHeading) : '--';
             document.getElementById('summaryHeading').textContent = headingValue + '°';
             
-            // Altitude: (A:Autopilot altitude lock var,feet)
             const altValue = data.apAltitude !== undefined ? Math.round(data.apAltitude).toLocaleString() : '--';
             document.getElementById('summaryAltitude').textContent = altValue;
             
-            // V/S: (A:Autopilot Vertical Hold Var, feet per minute)
             const vsValue = data.apVerticalSpeed !== undefined ? Math.round(data.apVerticalSpeed) : '--';
             document.getElementById('summaryVS').textContent = vsValue;
             
-            // Flaps and gear remain as actual aircraft state
             document.getElementById('summaryFlaps').textContent = Math.round(data.flaps) + '%';
             
-            // Update gear with arrow icons
             const gearElement = document.getElementById('summaryGear');
             if (data.gear) {
                 gearElement.className = 'arrow-down';
@@ -1280,9 +1251,7 @@ function getMobileAppHTML() {
             }
         }
 
-        // Add this function to update autopilot status badges
         function updateAutopilotStatus(data) {
-            // Update status badges
             updateStatusBadge('apMasterStatus', data.master);
             updateStatusBadge('apAltStatus', data.altitude);
             updateStatusBadge('apHdgStatus', data.heading);
@@ -1293,7 +1262,6 @@ function getMobileAppHTML() {
             updateStatusBadge('autoThrottleStatus', data.throttle);
         }
 
-        // Helper function to update a single status badge
         function updateStatusBadge(id, isActive) {
             const badge = document.getElementById(id);
             if (isActive) {
@@ -1310,17 +1278,12 @@ function getMobileAppHTML() {
             btn.textContent = text || (state ? 'ON' : 'OFF');
         }
 
-        // Custom aircraft icon creation functions
         function createUserAircraftIcon(heading, isSelected) {
             const color = isSelected ? "#FF0000" : "#FFD700";
-            const size = isSelected ? 26 : 24; // Slightly larger when selected
+            const size = isSelected ? 26 : 24;
             
             return L.divIcon({
-                html: \`<div class="user-aircraft \${isSelected ? 'selected' : ''}" style="transform: rotate(\${heading}deg);">
-                         <svg width="\${size}" height="\${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="\${color}" stroke="#000" stroke-width="0.5"/>
-                         </svg>
-                       </div>\`,
+                html: \`<div class="user-aircraft \${isSelected ? 'selected' : ''}" style="transform: rotate(\${heading}deg);"><svg width="\${size}" height="\${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="\${color}" stroke="#000" stroke-width="0.5"/></svg></div>\`,
                 className: '',
                 iconSize: [size, size],
                 iconAnchor: [size/2, size/2]
@@ -1332,11 +1295,7 @@ function getMobileAppHTML() {
             const size = isSelected ? 18 : 16;
             
             return L.divIcon({
-                html: \`<div class="ai-aircraft \${isSelected ? 'selected' : ''}" style="transform: rotate(\${heading}deg);">
-                         <svg width="\${size}" height="\${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="\${color}" stroke="#000" stroke-width="0.5"/>
-                         </svg>
-                       </div>\`,
+                html: \`<div class="ai-aircraft \${isSelected ? 'selected' : ''}" style="transform: rotate(\${heading}deg);"><svg width="\${size}" height="\${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="\${color}" stroke="#000" stroke-width="0.5"/></svg></div>\`,
                 className: '',
                 iconSize: [size, size],
                 iconAnchor: [size/2, size/2]
@@ -1355,20 +1314,16 @@ function getMobileAppHTML() {
                 maxZoom: 18
             }).addTo(map);
             
-            // Add zoom control to bottom right
             L.control.zoom({
                 position: 'bottomright'
             }).addTo(map);
 
-            // Set initial button text based on the default followUser state
             document.getElementById('followUserBtn').textContent = followUser ? 'Following' : 'Follow Aircraft';
             
-            // Add map controls
             map.on('mousedown', function(e) {
-                if (e.originalEvent.button === 0) { // Left click
+                if (e.originalEvent.button === 0) {
                     isDragging = true;
                     mapDragStart = e.latlng;
-                    // Follow mode is now only toggled by button, not by dragging
                 }
             });
             
@@ -1384,24 +1339,19 @@ function getMobileAppHTML() {
                 mapDragStart = null;
             });
             
-            // Click anywhere on map to deselect aircraft
             map.on('click', function(e) {
-                // Check if clicking on an aircraft marker
                 if (e.originalEvent.target.closest('.leaflet-marker-icon')) {
-                    return; // Let the aircraft click handler handle this
+                    return;
                 }
                 
-                // Clicked on empty map space - deselect aircraft
                 selectedAircraft = null;
                 updateMap(userLat, userLon, userHeading);
                 updateNearbyAircraftList();
                 
-                // Clear aircraft details
                 const detailsPanel = document.getElementById('aircraftDetails');
                 detailsPanel.innerHTML = '<p>Click on an aircraft to view details</p>';
             });
             
-            // Update center coordinates when map is moved
             map.on('moveend', function() {
                 const center = map.getCenter();
                 mapCenterLat = center.lat;
@@ -1414,23 +1364,19 @@ function getMobileAppHTML() {
         function updateMap(lat, lon, heading) {
             if (!map) return;
             
-            // Update user position
             userLat = lat;
             userLon = lon;
             userHeading = heading;
 
-            // Center map on user aircraft on first update, but do not lock it
             if (!mapInitialized) {
                 map.setView([lat, lon], mapZoom);
                 mapInitialized = true;
             }
             
-            // Update map view if following user
             if (followUser) {
                 map.setView([lat, lon], mapZoom);
             }
             
-            // Clear existing markers
             if (aircraftMarkers) {
                 aircraftMarkers.forEach(marker => map.removeLayer(marker));
                 aircraftMarkers = [];
@@ -1438,40 +1384,23 @@ function getMobileAppHTML() {
                 aircraftMarkers = [];
             }
             
-            // Add user aircraft marker with custom icon (red if selected)
             const userIsSelected = selectedAircraft && selectedAircraft.isUser;
             const userMarker = L.marker([lat, lon], { 
                 icon: createUserAircraftIcon(heading, userIsSelected) 
             }).addTo(map);
 
-// Create popup content for user aircraft
-const userCallsign = currentFlightData.atcId || "Your Aircraft";
-const userFlightInfo = (currentFlightData.atcAirline && currentFlightData.atcFlightNumber) 
-    ? currentFlightData.atcAirline + " " + currentFlightData.atcFlightNumber 
-    : "";
-const userAircraftModel = currentFlightData.atcModel || currentFlightData.atcType || "User Aircraft";
+            const userCallsign = currentFlightData.atcId || "Your Aircraft";
+            const userFlightInfo = (currentFlightData.atcAirline && currentFlightData.atcFlightNumber) 
+                ? currentFlightData.atcAirline + " " + currentFlightData.atcFlightNumber 
+                : "";
+            const userAircraftModel = currentFlightData.atcModel || currentFlightData.atcType || "User Aircraft";
 
-const userPopupContent = \`
-    <div style="min-width:200px">
-        <h4 style="margin:0 0 5px 0">\${userCallsign}</h4>
-        \${userFlightInfo ? \`<p style="margin:0 0 5px 0">\${userFlightInfo}</p>\` : ""}
-        <p style="margin:0 0 5px 0">Aircraft: \${userAircraftModel}</p>
-        <p style="margin:0 0 5px 0">Speed: \${Math.round(currentFlightData.groundSpeed || 0)} kts</p>
-        <p style="margin:0 0 5px 0">Altitude: \${Math.round(currentFlightData.altitude || 0)} ft</p>
-        <p style="margin:0">Heading: \${Math.round(currentFlightData.heading || 0)}°</p>
-    </div>
-\`;
-
-// Create popup content for user aircraft
-const userPopupContent = `
-    <div style="min-width:200px">
-        <h4 style="margin:0 0 5px 0">${userCallsign}</h4>
+            const userPopupContent = \`<div style="min-width:200px"><h4 style="margin:0 0 5px 0">\${userCallsign}</h4>\${userFlightInfo ? \`<p style="margin:0 0 5px 0">\${userFlightInfo}</p>\` : ""}<p style="margin:0 0 5px 0">Aircraft: \${userAircraftModel}</p><p style="margin:0 0 5px 0">Speed: \${Math.round(currentFlightData.groundSpeed || 0)} kts</p><p style="margin:0 0 5px 0">Altitude: \${Math.round(currentFlightData.altitude || 0)} ft</p><p style="margin:0">Heading: \${Math.round(currentFlightData.heading || 0)}°</p></div>\`;
 
             userMarker.bindPopup(userPopupContent);
 
-            // Add click event to select user aircraft
             userMarker.on('click', function(e) {
-                L.DomEvent.stopPropagation(e); // Prevent map click event
+                L.DomEvent.stopPropagation(e);
                 selectedAircraft = { isUser: true };
                 updateUserAircraftDetails();
                 updateMap(lat, lon, heading);
@@ -1480,7 +1409,6 @@ const userPopupContent = `
             
             aircraftMarkers.push(userMarker);
             
-            // Add AI aircraft markers with custom white/red icons
             aiAircraft.forEach(aircraft => {
                 const isSelected = selectedAircraft && 
                                 ((selectedAircraft.atcId && selectedAircraft.atcId === aircraft.atcId) || 
@@ -1490,7 +1418,6 @@ const userPopupContent = `
                     icon: createAIAircraftIcon(aircraft.heading, isSelected)
                 }).addTo(map);
                 
-                // Create popup content
                 let callsign = aircraft.atcId || "N/A";
                 let flightInfo = "";
                 if (aircraft.atcAirline && aircraft.atcFlightNumber) {
@@ -1506,23 +1433,12 @@ const userPopupContent = `
                     routeInfo = "To " + aircraft.destinationAirport;
                 }
                 
-                const popupContent = \`
-                    <div style="min-width:200px">
-                        <h4 style="margin:0 0 5px 0">\${callsign}</h4>
-                        \${flightInfo ? \`<p style="margin:0 0 5px 0">\${flightInfo}</p>\` : ""}
-                        <p style="margin:0 0 5px 0">Aircraft: \${aircraft.atcModel || aircraft.atcType || aircraft.title}</p>
-                        \${routeInfo ? \`<p style="margin:0 0 5px 0">Route: \${routeInfo}</p>\` : ""}
-                        <p style="margin:0 0 5px 0">Speed: \${Math.round(aircraft.groundSpeed)} kts</p>
-                        <p style="margin:0 0 5px 0">Altitude: \${Math.round(aircraft.altitude)} ft</p>
-                        <p style="margin:0">Distance: \${aircraft.distanceFromUser.toFixed(1)} nm</p>
-                    </div>
-                \`;
+                const popupContent = \`<div style="min-width:200px"><h4 style="margin:0 0 5px 0">\${callsign}</h4>\${flightInfo ? \`<p style="margin:0 0 5px 0">\${flightInfo}</p>\` : ""}<p style="margin:0 0 5px 0">Aircraft: \${aircraft.atcModel || aircraft.atcType || aircraft.title}</p>\${routeInfo ? \`<p style="margin:0 0 5px 0">Route: \${routeInfo}</p>\` : ""}<p style="margin:0 0 5px 0">Speed: \${Math.round(aircraft.groundSpeed)} kts</p><p style="margin:0 0 5px 0">Altitude: \${Math.round(aircraft.altitude)} ft</p><p style="margin:0">Distance: \${aircraft.distanceFromUser.toFixed(1)} nm</p></div>\`;
                 
                 marker.bindPopup(popupContent);
                 
-                // Add click event to select aircraft
                 marker.on('click', function(e) {
-                    L.DomEvent.stopPropagation(e); // Prevent map click event
+                    L.DomEvent.stopPropagation(e);
                     selectedAircraft = aircraft;
                     updateAircraftDetails(aircraft);
                     updateMap(lat, lon, heading);
@@ -1531,11 +1447,9 @@ const userPopupContent = `
                 
                 aircraftMarkers.push(marker);
                 
-                // Add label if enabled
                 if (showAircraftLabels) {
                     const label = L.divIcon({
-                        html: \`<div style="background:rgba(0,0,0,0.7);color:white;padding:2px 5px;border-radius:3px;font-size:11px;white-space:nowrap">
-                                       \${aircraft.atcId || aircraft.title.substring(0, 10)}</div>\`,
+                        html: \`<div style="background:rgba(0,0,0,0.7);color:white;padding:2px 5px;border-radius:3px;font-size:11px;white-space:nowrap">\${aircraft.atcId || aircraft.title.substring(0, 10)}</div>\`,
                         className: '',
                         iconSize: [100, 20],
                         iconAnchor: [50, -10]
@@ -1547,42 +1461,21 @@ const userPopupContent = `
             });
         }
 
-function updateUserAircraftDetails() {
-    const detailsPanel = document.getElementById('aircraftDetails');
-    if (!detailsPanel) return;
-    
-    const callsign = currentFlightData.atcId || "Your Aircraft";
-    const flightInfo = (currentFlightData.atcAirline && currentFlightData.atcFlightNumber) 
-        ? currentFlightData.atcAirline + " " + currentFlightData.atcFlightNumber 
-        : currentFlightData.atcAirline || "";
-    const aircraftModel = currentFlightData.atcModel || currentFlightData.atcType || "User Aircraft";
-    const routeInfo = (currentFlightData.flightPlanOrigin && currentFlightData.flightPlanDestination) 
-        ? currentFlightData.flightPlanOrigin + " → " + currentFlightData.flightPlanDestination 
-        : "";
-    
-    detailsPanel.innerHTML = \`
-        <h4 style="margin-top:0">\${callsign}</h4>
-        \${flightInfo ? \`<p><strong>Flight:</strong> \${flightInfo}</p>\` : ""}
-        <p><strong>Aircraft:</strong> \${aircraftModel}</p>
-        \${routeInfo ? \`<p><strong>Route:</strong> \${routeInfo}</p>\` : ""}
-        <div class="detail-row">
-            <span class="detail-label">Departure:</span>
-            <span class="detail-value">\${currentFlightData.flightPlanOrigin || 'N/A'}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">Destination:</span>
-            <span class="detail-value">\${currentFlightData.flightPlanDestination || 'N/A'}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">Speed:</span>
-            <span class="detail-value">\${Math.round(currentFlightData.groundSpeed || 0)} kts</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">Altitude:</span>
-            <span class="detail-value">\${Math.round(currentFlightData.altitude || 0)} ft</span>
-        </div>
-    \`;
-}
+        function updateUserAircraftDetails() {
+            const detailsPanel = document.getElementById('aircraftDetails');
+            if (!detailsPanel) return;
+            
+            const callsign = currentFlightData.atcId || "Your Aircraft";
+            const flightInfo = (currentFlightData.atcAirline && currentFlightData.atcFlightNumber) 
+                ? currentFlightData.atcAirline + " " + currentFlightData.atcFlightNumber 
+                : currentFlightData.atcAirline || "";
+            const aircraftModel = currentFlightData.atcModel || currentFlightData.atcType || "User Aircraft";
+            const routeInfo = (currentFlightData.flightPlanOrigin && currentFlightData.flightPlanDestination) 
+                ? currentFlightData.flightPlanOrigin + " → " + currentFlightData.flightPlanDestination 
+                : "";
+            
+            detailsPanel.innerHTML = \`<h4 style="margin-top:0">\${callsign}</h4>\${flightInfo ? \`<p><strong>Flight:</strong> \${flightInfo}</p>\` : ""}<p><strong>Aircraft:</strong> \${aircraftModel}</p>\${routeInfo ? \`<p><strong>Route:</strong> \${routeInfo}</p>\` : ""}<div class="detail-row"><span class="detail-label">Departure:</span><span class="detail-value">\${currentFlightData.flightPlanOrigin || 'N/A'}</span></div><div class="detail-row"><span class="detail-label">Destination:</span><span class="detail-value">\${currentFlightData.flightPlanDestination || 'N/A'}</span></div><div class="detail-row"><span class="detail-label">Speed:</span><span class="detail-value">\${Math.round(currentFlightData.groundSpeed || 0)} kts</span></div><div class="detail-row"><span class="detail-label">Altitude:</span><span class="detail-value">\${Math.round(currentFlightData.altitude || 0)} ft</span></div>\`;
+        }
 
         function updateAircraftDetails(aircraft) {
             const detailsPanel = document.getElementById('aircraftDetails');
@@ -1597,38 +1490,14 @@ function updateUserAircraftDetails() {
             }
             
             let routeInfo = "";
-            if (aircraft.departureAirport && aircraft.destinationAirport) {
+            if (aircraft
+            .departureAirport && aircraft.destinationAirport) {
                 routeInfo = aircraft.departureAirport + " → " + aircraft.destinationAirport;
             } else if (aircraft.destinationAirport) {
                 routeInfo = "To " + aircraft.destinationAirport;
             }
             
-            detailsPanel.innerHTML = \`
-                <h4 style="margin-top:0">\${callsign}</h4>
-                \${flightInfo ? \`<p><strong>Flight:</strong> \${flightInfo}</p>\` : ""}
-                <p><strong>Aircraft:</strong> \${aircraft.atcModel || aircraft.atcType || aircraft.title}</p>
-                \${routeInfo ? \`<p><strong>Route:</strong> \${routeInfo}</p>\` : ""}
-                <div class="detail-row">
-                    <span class="detail-label">Departure:</span>
-                    <span class="detail-value">\${aircraft.departureAirport || 'N/A'}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Destination:</span>
-                    <span class="detail-value">\${aircraft.destinationAirport || 'N/A'}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Speed:</span>
-                    <span class="detail-value">\${Math.round(aircraft.groundSpeed)} kts</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Altitude:</span>
-                    <span class="detail-value">\${Math.round(aircraft.altitude)} ft</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Distance:</span>
-                    <span class="detail-value">\${aircraft.distanceFromUser.toFixed(1)} nm</span>
-                </div>
-            \`;
+            detailsPanel.innerHTML = \`<h4 style="margin-top:0">\${callsign}</h4>\${flightInfo ? \`<p><strong>Flight:</strong> \${flightInfo}</p>\` : ""}<p><strong>Aircraft:</strong> \${aircraft.atcModel || aircraft.atcType || aircraft.title}</p>\${routeInfo ? \`<p><strong>Route:</strong> \${routeInfo}</p>\` : ""}<div class="detail-row"><span class="detail-label">Departure:</span><span class="detail-value">\${aircraft.departureAirport || 'N/A'}</span></div><div class="detail-row"><span class="detail-label">Destination:</span><span class="detail-value">\${aircraft.destinationAirport || 'N/A'}</span></div><div class="detail-row"><span class="detail-label">Speed:</span><span class="detail-value">\${Math.round(aircraft.groundSpeed)} kts</span></div><div class="detail-row"><span class="detail-label">Altitude:</span><span class="detail-value">\${Math.round(aircraft.altitude)} ft</span></div><div class="detail-row"><span class="detail-label">Distance:</span><span class="detail-value">\${aircraft.distanceFromUser.toFixed(1)} nm</span></div>\`;
         }
 
         function updateNearbyAircraftList() {
@@ -1637,17 +1506,13 @@ function updateUserAircraftDetails() {
             
             list.innerHTML = '';
             
-            // Add user aircraft as first item in the list
             const userItem = document.createElement('div');
             userItem.className = 'aircraft-list-item';
             if (selectedAircraft && selectedAircraft.isUser) {
                 userItem.classList.add('selected');
             }
             
-            userItem.innerHTML = \`
-                <div class="aircraft-callsign">Your Aircraft</div>
-                <div class="aircraft-distance">0 nm</div>
-            \`;
+            userItem.innerHTML = \`<div class="aircraft-callsign">Your Aircraft</div><div class="aircraft-distance">0 nm</div>\`;
             
             userItem.addEventListener('click', function() {
                 selectedAircraft = { isUser: true };
@@ -1661,12 +1526,10 @@ function updateUserAircraftDetails() {
             
             list.appendChild(userItem);
             
-            // Add a separator
             const separator = document.createElement('div');
             separator.style.cssText = 'height: 1px; background: #333; margin: 5px 0;';
             list.appendChild(separator);
             
-            // Add AI aircraft
             if (aiAircraft.length === 0) {
                 list.innerHTML += '<div class="no-aircraft">No nearby aircraft</div>';
                 return;
@@ -1682,10 +1545,7 @@ function updateUserAircraftDetails() {
                     item.classList.add('selected');
                 }
                 
-                item.innerHTML = \`
-                    <div class="aircraft-callsign">\${callsign}</div>
-                    <div class="aircraft-distance">\${aircraft.distanceFromUser.toFixed(1)} nm</div>
-                \`;
+                item.innerHTML = \`<div class="aircraft-callsign">\${callsign}</div><div class="aircraft-distance">\${aircraft.distanceFromUser.toFixed(1)} nm</div>\`;
                 
                 item.addEventListener('click', function() {
                     selectedAircraft = aircraft;
@@ -1719,15 +1579,6 @@ function updateUserAircraftDetails() {
             }
         }
 
-        function centerOnUser() {
-            followUser = true;
-            mapZoom = 7;
-            document.getElementById('followUserBtn').textContent = 'Following';
-            selectedAircraft = null;
-            updateMap(userLat, userLon, userHeading);
-            updateNearbyAircraftList();
-        }
-
         function unlockControls() {
             const password = document.getElementById('controlPassword').value;
             ws.send(JSON.stringify({ type: 'request_control', password }));
@@ -1738,7 +1589,6 @@ function updateUserAircraftDetails() {
         }
 
         function saveGame() {
-            // Disable the save button
             const saveBtn = document.querySelector('button[onclick="saveGame()"]');
             if (saveBtn) {
                 saveBtn.disabled = true;
@@ -1747,10 +1597,8 @@ function updateUserAircraftDetails() {
             
             ws.send(JSON.stringify({ type: 'save_game' }));
             
-            // Show progress popup
             showSaveProgress();
             
-            // Keep button disabled for 60 seconds
             let countdown = 60;
             const disableInterval = setInterval(() => {
                 countdown--;
@@ -1773,18 +1621,7 @@ function updateUserAircraftDetails() {
             overlay.id = 'saveProgressOverlay';
             overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10000;';
             
-            overlay.innerHTML = \`
-                <div style="background: #1a1a1a; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #167fac;">
-                    <div style="font-size: 40px; margin-bottom: 15px;">💾</div>
-                    <h3 style="margin: 0 0 10px 0; color: #167fac;">Saving Flight...</h3>
-                    <div style="color: #888; font-size: 14px;">Please wait</div>
-                    <div style="margin-top: 20px;">
-                        <div style="width: 200px; height: 4px; background: #333; border-radius: 2px; overflow: hidden;">
-                            <div id="saveProgressBar" style="width: 0%; height: 100%; background: #167fac; transition: width 0.3s;"></div>
-                        </div>
-                    </div>
-                </div>
-            \`;
+            overlay.innerHTML = \`<div style="background: #1a1a1a; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #167fac;"><div style="font-size: 40px; margin-bottom: 15px;">💾</div><h3 style="margin: 0 0 10px 0; color: #167fac;">Saving Flight...</h3><div style="color: #888; font-size: 14px;">Please wait</div><div style="margin-top: 20px;"><div style="width: 200px; height: 4px; background: #333; border-radius: 2px; overflow: hidden;"><div id="saveProgressBar" style="width: 0%; height: 100%; background: #167fac; transition: width 0.3s;"></div></div></div></div>\`;
             
             document.body.appendChild(overlay);
             
@@ -1816,13 +1653,9 @@ function updateUserAircraftDetails() {
             
             const content = overlay.querySelector('div > div');
             if (success) {
-                content.innerHTML = '<div style="font-size: 40px; margin-bottom: 15px;">✅</div>' +
-                                   '<h3 style="margin: 0 0 10px 0; color: #4CAF50;">Flight Saved!</h3>' +
-                                   '<div style="color: #ccc; font-size: 14px;">' + filename + '</div>';
+                content.innerHTML = '<div style="font-size: 40px; margin-bottom: 15px;">✅</div><h3 style="margin: 0 0 10px 0; color: #4CAF50;">Flight Saved!</h3><div style="color: #ccc; font-size: 14px;">' + filename + '</div>';
             } else {
-                content.innerHTML = '<div style="font-size: 40px; margin-bottom: 15px;">❌</div>' +
-                                   '<h3 style="margin: 0 0 10px 0; color: #f44336;">Save Failed</h3>' +
-                                   '<div style="color: #ccc; font-size: 14px;">Please try again</div>';
+                content.innerHTML = '<div style="font-size: 40px; margin-bottom: 15px;">❌</div><h3 style="margin: 0 0 10px 0; color: #f44336;">Save Failed</h3><div style="color: #ccc; font-size: 14px;">Please try again</div>';
             }
             
             setTimeout(() => {
@@ -1831,13 +1664,7 @@ function updateUserAircraftDetails() {
         }
 
         function toggleAP(system) {
-            if (system === 'loc') {
-                ws.send(JSON.stringify({ type: 'autopilot_toggle', system: 'loc' }));
-            } else if (system === 'ils') {
-                ws.send(JSON.stringify({ type: 'autopilot_toggle', system: 'ils' }));
-            } else {
-                ws.send(JSON.stringify({ type: 'autopilot_toggle', system }));
-            }
+            ws.send(JSON.stringify({ type: 'autopilot_toggle', system }));
         }
 
         function setAltitude() {
@@ -1892,7 +1719,6 @@ function updateUserAircraftDetails() {
             ws.send(JSON.stringify({ type: 'change_flaps', direction }));
         }
         
-        // ===== New functions for lights and cabin controls =====
         function toggleLight(lightType) {
             ws.send(JSON.stringify({ type: 'toggle_light', lightType: lightType }));
         }
@@ -1901,7 +1727,6 @@ function updateUserAircraftDetails() {
             ws.send(JSON.stringify({ type: 'toggle_cabin', cabinType: cabinType }));
         }
 
-        // Load saved ID
         window.onload = () => {
             const savedId = localStorage.getItem('p3d_unique_id');
             if (savedId) {
@@ -1916,5 +1741,3 @@ function updateUserAircraftDetails() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
-
-
