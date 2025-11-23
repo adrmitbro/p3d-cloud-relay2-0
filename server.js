@@ -1341,9 +1341,28 @@ function getMobileAppHTML() {
             const detailsPanel = document.getElementById('aircraftDetails');
             if (!detailsPanel) return;
             
+            // Use the same data fields as AI aircraft for consistency
+            const callsign = currentFlightData.atcId || "Your Aircraft";
+            const flightInfo = (currentFlightData.atcAirline && currentFlightData.atcFlightNumber) 
+                ? currentFlightData.atcAirline + " " + currentFlightData.atcFlightNumber 
+                : currentFlightData.atcAirline || "";
+            const routeInfo = (currentFlightData.userDepartureAirport && currentFlightData.userDestinationAirport) 
+                ? currentFlightData.userDepartureAirport + " → " + currentFlightData.userDestinationAirport 
+                : (currentFlightData.userDestinationAirport ? "To " + currentFlightData.userDestinationAirport : "");
+            
             detailsPanel.innerHTML = \`
-                <h4 style="margin-top:0">Your Aircraft</h4>
-                <p><strong>Aircraft:</strong> User Aircraft</p>
+                <h4 style="margin-top:0">\${callsign}</h4>
+                \${flightInfo ? \`<p><strong>Flight:</strong> \${flightInfo}</p>\` : ""}
+                <p><strong>Aircraft:</strong> \${currentFlightData.atcType || 'User Aircraft'}</p>
+                \${routeInfo ? \`<p><strong>Route:</strong> \${routeInfo}</p>\` : ""}
+                <div class="detail-row">
+                    <span class="detail-label">Departure:</span>
+                    <span class="detail-value">\${currentFlightData.userDepartureAirport || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Destination:</span>
+                    <span class="detail-value">\${currentFlightData.userDestinationAirport || 'N/A'}</span>
+                </div>
                 <div class="detail-row">
                     <span class="detail-label">Speed:</span>
                     <span class="detail-value">\${Math.round(currentFlightData.groundSpeed || 0)} kts</span>
@@ -1351,18 +1370,6 @@ function getMobileAppHTML() {
                 <div class="detail-row">
                     <span class="detail-label">Altitude:</span>
                     <span class="detail-value">\${Math.round(currentFlightData.altitude || 0)} ft</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Heading:</span>
-                    <span class="detail-value">\${Math.round(currentFlightData.heading || 0)}°</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Vertical Speed:</span>
-                    <span class="detail-value">\${Math.round(currentFlightData.verticalSpeed || 0)} fpm</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Next Waypoint:</span>
-                    <span class="detail-value">\${currentFlightData.nextWaypoint || 'N/A'}</span>
                 </div>
             \`;
         }
