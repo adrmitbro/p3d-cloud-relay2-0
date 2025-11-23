@@ -542,12 +542,13 @@ function getMobileAppHTML() {
 
 .status-badge {
     display: inline-block;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 8px;
+    font-size: 10px;
     font-weight: bold;
     background: #333;
     color: #888;
+    margin: 1px;
 }
 
 .status-badge.active {
@@ -556,11 +557,18 @@ function getMobileAppHTML() {
 }
 
 /* Compact Summary Styles */
-.summary-row {
+.summary-container {
+    background: #0d0d0d;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.summary-main {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 10px;
-    gap: 5px;
+    margin-bottom: 8px;
+    gap: 4px;
 }
 
 .summary-item {
@@ -570,14 +578,14 @@ function getMobileAppHTML() {
 }
 
 .summary-label {
-    font-size: 10px;
+    font-size: 9px;
     color: #888;
     text-transform: uppercase;
     margin-bottom: 2px;
 }
 
 .summary-value {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: bold;
     color: #167fac;
     white-space: nowrap;
@@ -585,29 +593,44 @@ function getMobileAppHTML() {
     text-overflow: ellipsis;
 }
 
-.status-badges-row {
+.summary-secondary {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    justify-content: center;
+    justify-content: space-around;
+    align-items: center;
+    padding: 5px 0;
+    border-top: 1px solid #222;
+}
+
+.summary-secondary-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .arrow-up {
     width: 0;
     height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-bottom: 12px solid #167fac;
-    margin: 5px auto;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 10px solid #167fac;
 }
 
 .arrow-down {
     width: 0;
     height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-top: 12px solid #167fac;
-    margin: 5px auto;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 10px solid #167fac;
+}
+
+.status-badges-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    justify-content: center;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #222;
 }
         
         .detail-row {
@@ -781,43 +804,48 @@ function getMobileAppHTML() {
 
                 <!-- Compact Summary Section -->
                 <div class='card'>
-                    <h3>Autopilot Targets</h3>
-                    <div class='summary-row'>
-                        <div class='summary-item'>
-                            <div class='summary-label'>SPD</div>
-                            <div class='summary-value' id='summarySpeed'>--</div>
+                    <h3 style='margin-bottom: 10px;'>AP Targets</h3>
+                    <div class='summary-container'>
+                        <div class='summary-main'>
+                            <div class='summary-item'>
+                                <div class='summary-label'>SPD</div>
+                                <div class='summary-value' id='summarySpeed'>--</div>
+                            </div>
+                            <div class='summary-item'>
+                                <div class='summary-label'>HDG</div>
+                                <div class='summary-value' id='summaryHeading'>--</div>
+                            </div>
+                            <div class='summary-item'>
+                                <div class='summary-label'>ALT</div>
+                                <div class='summary-value' id='summaryAltitude'>--</div>
+                            </div>
+                            <div class='summary-item'>
+                                <div class='summary-label'>V/S</div>
+                                <div class='summary-value' id='summaryVS'>--</div>
+                            </div>
                         </div>
-                        <div class='summary-item'>
-                            <div class='summary-label'>HDG</div>
-                            <div class='summary-value' id='summaryHeading'>--°</div>
+                        
+                        <div class='summary-secondary'>
+                            <div class='summary-secondary-item'>
+                                <span style='font-size: 10px; color: #888;'>FLAPS</span>
+                                <span style='font-size: 12px; font-weight: bold; color: #167fac;' id='summaryFlaps'>--%</span>
+                            </div>
+                            <div class='summary-secondary-item'>
+                                <span style='font-size: 10px; color: #888;'>GEAR</span>
+                                <div id='summaryGear' class='arrow-up'></div>
+                            </div>
                         </div>
-                        <div class='summary-item'>
-                            <div class='summary-label'>ALT</div>
-                            <div class='summary-value' id='summaryAltitude'>--</div>
+                        
+                        <div class='status-badges-row'>
+                            <span class='status-badge' id='apMasterStatus'>AP</span>
+                            <span class='status-badge' id='apAltStatus'>ALT</span>
+                            <span class='status-badge' id='apHdgStatus'>HDG</span>
+                            <span class='status-badge' id='apVSStatus'>V/S</span>
+                            <span class='status-badge' id='apSpeedStatus'>SPD</span>
+                            <span class='status-badge' id='apNavStatus'>NAV</span>
+                            <span class='status-badge' id='apAppStatus'>APP</span>
+                            <span class='status-badge' id='autoThrottleStatus'>A/T</span>
                         </div>
-                        <div class='summary-item'>
-                            <div class='summary-label'>V/S</div>
-                            <div class='summary-value' id='summaryVS'>--</div>
-                        </div>
-                        <div class='summary-item'>
-                            <div class='summary-label'>FLAPS</div>
-                            <div class='summary-value' id='summaryFlaps'>--%</div>
-                        </div>
-                        <div class='summary-item'>
-                            <div class='summary-label'>GEAR</div>
-                            <div id='summaryGear' class='arrow-up'></div>
-                        </div>
-                    </div>
-                    
-                    <div class='status-badges-row'>
-                        <span class='status-badge' id='apMasterStatus'>AP</span>
-                        <span class='status-badge' id='apAltStatus'>ALT</span>
-                        <span class='status-badge' id='apHdgStatus'>HDG</span>
-                        <span class='status-badge' id='apVSStatus'>V/S</span>
-                        <span class='status-badge' id='apSpeedStatus'>SPD</span>
-                        <span class='status-badge' id='apNavStatus'>NAV</span>
-                        <span class='status-badge' id='apAppStatus'>APP</span>
-                        <span class='status-badge' id='autoThrottleStatus'>A/T</span>
                     </div>
                 </div>
                 
@@ -1225,16 +1253,20 @@ function getMobileAppHTML() {
         function updateFlightSummary(data) {
             // Use autopilot target values, not current aircraft values
             // Speed: (A:Autopilot airspeed hold var,knots)
-            document.getElementById('summarySpeed').textContent = data.apSpeed || '--';
+            const speedValue = data.apSpeed !== undefined ? Math.round(data.apSpeed) : '--';
+            document.getElementById('summarySpeed').textContent = speedValue;
             
             // Heading: (A:Autopilot heading lock dir, degrees)
-            document.getElementById('summaryHeading').textContent = (data.apHeading !== undefined ? Math.round(data.apHeading) + '°' : '--°');
+            const headingValue = data.apHeading !== undefined ? Math.round(data.apHeading) : '--';
+            document.getElementById('summaryHeading').textContent = headingValue + '°';
             
             // Altitude: (A:Autopilot altitude lock var,feet)
-            document.getElementById('summaryAltitude').textContent = data.apAltitude !== undefined ? Math.round(data.apAltitude).toLocaleString() : '--';
+            const altValue = data.apAltitude !== undefined ? Math.round(data.apAltitude).toLocaleString() : '--';
+            document.getElementById('summaryAltitude').textContent = altValue;
             
             // V/S: (A:Autopilot Vertical Hold Var, feet per minute)
-            document.getElementById('summaryVS').textContent = data.apVerticalSpeed !== undefined ? Math.round(data.apVerticalSpeed) : '--';
+            const vsValue = data.apVerticalSpeed !== undefined ? Math.round(data.apVerticalSpeed) : '--';
+            document.getElementById('summaryVS').textContent = vsValue;
             
             // Flaps and gear remain as actual aircraft state
             document.getElementById('summaryFlaps').textContent = Math.round(data.flaps) + '%';
