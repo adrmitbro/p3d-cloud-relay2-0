@@ -539,6 +539,21 @@ function getMobileAppHTML() {
             font-size: 11px;
             margin-top: 5px;
         }
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    background: #333;
+    color: #888;
+}
+
+.status-badge.active {
+    background: #167fac;
+    color: #fff;
+}
         
         .detail-row {
             display: flex;
@@ -708,6 +723,58 @@ function getMobileAppHTML() {
                         <button class='btn btn-primary' onclick='saveGame()'>💾 Save Flight</button>
                     </div>
                 </div>
+
+                // Add this after the save button in the autopilot tab
+<div class='card'>
+    <h3>Autopilot Status</h3>
+    <div class='data-grid'>
+        <div class='data-item'>
+            <div class='data-label'>Speed</div>
+            <div class='data-value' id='summarySpeed'>--</div>
+            <div style='font-size: 11px; color: #888;'>knots</div>
+        </div>
+        <div class='data-item'>
+            <div class='data-label'>Heading</div>
+            <div class='data-value' id='summaryHeading'>--</div>
+            <div style='font-size: 11px; color: #888;'>degrees</div>
+        </div>
+        <div class='data-item'>
+            <div class='data-label'>Altitude</div>
+            <div class='data-value' id='summaryAltitude'>--</div>
+            <div style='font-size: 11px; color: #888;'>feet</div>
+        </div>
+        <div class='data-item'>
+            <div class='data-label'>V/S</div>
+            <div class='data-value' id='summaryVS'>--</div>
+            <div style='font-size: 11px; color: #888;'>fpm</div>
+        </div>
+    </div>
+    
+    <div style='display: flex; justify-content: space-between; margin-top: 10px;'>
+        <div style='text-align: center; flex: 1;'>
+            <div class='data-label'>Gear</div>
+            <div class='toggle-btn' id='summaryGear' style='margin: 5px auto;'>--</div>
+        </div>
+        <div style='text-align: center; flex: 1;'>
+            <div class='data-label'>Flaps</div>
+            <div id='summaryFlaps' style='font-size: 18px; font-weight: bold; color: #167fac; margin: 5px auto;'>--%</div>
+        </div>
+    </div>
+    
+    <div style='margin-top: 15px;'>
+        <div class='data-label'>Active Systems</div>
+        <div style='display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;'>
+            <span class='status-badge' id='apMasterStatus'>AP</span>
+            <span class='status-badge' id='apAltStatus'>ALT</span>
+            <span class='status-badge' id='apHdgStatus'>HDG</span>
+            <span class='status-badge' id='apVSStatus'>V/S</span>
+            <span class='status-badge' id='apSpeedStatus'>SPD</span>
+            <span class='status-badge' id='apNavStatus'>NAV</span>
+            <span class='status-badge' id='apAppStatus'>APP</span>
+            <span class='status-badge' id='autoThrottleStatus'>A/T</span>
+        </div>
+    </div>
+</div>
                 
                 <div class='card'>
                     <h3>Autopilot</h3>
@@ -1105,6 +1172,66 @@ function getMobileAppHTML() {
             updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
         }
 
+// Add this function to update the summary section
+function updateFlightSummary(data) {
+    // Update flight data values
+    document.getElementById('summarySpeed').textContent = Math.round(data.groundSpeed);
+    document.getElementById('summaryHeading').textContent = Math.round(data.heading);
+    document.getElementById('summaryAltitude').textContent = Math.round(data.altitude).toLocaleString();
+    document.getElementById('summaryVS').textContent = Math.round(data.verticalSpeed);
+    
+    // Update gear status
+    const gearBtn = document.getElementById('summaryGear');
+    if (data.gear) {
+        gearBtn.className = 'toggle-btn on';
+        gearBtn.textContent = 'DOWN';
+    } else {
+        gearBtn.className = 'toggle-btn off';
+        gearBtn.textContent = 'UP';
+    }
+    
+    // Update flaps position
+    document.getElementById('summaryFlaps').textContent = Math.round(data.flaps) + '%';
+}
+
+// Add this function to update the autopilot status badges
+function updateAutopilotStatus(data) {
+    // Update status badges
+    updateStatusBadge('apMasterStatus', data.master);
+    updateStatusBadge('apAltStatus', data.altitude);
+    updateStatusBadge('apHdgStatus', data.heading);
+    updateStatusBadge('apVSStatus', data.vs);
+    updateStatusBadge('apSpeedStatus', data.speed);
+    updateStatusBadge('apNavStatus', data.nav);
+    updateStatusBadge('apAppStatus', data.approach);
+    updateStatusBadge('autoThrottleStatus', data.throttle);
+}
+
+// Helper function to update a single status badge
+function updateStatusBadge(id, isActive) {
+    const badge = document.getElementById(id);
+    if (isActive) {
+        badge.classList.add('active');
+    } else {
+        badge.classList.remove('active');
+    }
+}
+
+// Update the updateFlightData function to also update the summary
+function updateFlightData(data) {
+    // ... existing code ...
+    
+    // Update the summary section
+    updateFlightSummary(data);
+}
+
+// Update the updateAutopilotUI function to also update the status badges
+function updateAutopilotUI(data) {
+    // ... existing code ...
+    
+    // Update the autopilot status badges
+    updateAutopilotStatus(data);
+}
         function updateToggle(id, state, text) {
             const btn = document.getElementById(id);
             if (!btn) return;
@@ -1706,3 +1833,4 @@ function getMobileAppHTML() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
