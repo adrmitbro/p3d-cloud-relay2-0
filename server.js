@@ -1103,6 +1103,10 @@ function getMobileAppHTML() {
                 case 'auth_failed':
                     alert('Wrong password!');
                     break;
+
+                    case 'flight_plan_data':
+    updateFlightPlan(data.data);
+    break;
                     
                 case 'control_required':
                     if (document.getElementById('controlLock').classList.contains('hidden')) {
@@ -1141,9 +1145,6 @@ function getMobileAppHTML() {
   });
   break;
 
-  case 'flight_plan_data':
-    updateFlightPlan(data.data);
-    break;
                     
                 case 'pc_offline':
                     updateStatus('offline');
@@ -1581,9 +1582,7 @@ function updateFlightPlan(data) {
         if (wp.waypointId === 'CURRENT') return; // Skip current position marker
         
         const waypointIcon = L.divIcon({
-            html: `<div style="background: #FF00FF; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; border: 1px solid white;">
-                      ${wp.waypointId}
-                   </div>`,
+            html: '<div style="background: #FF00FF; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; border: 1px solid white;">' + wp.waypointId + '</div>',
             className: '',
             iconSize: [50, 20],
             iconAnchor: [25, 10]
@@ -1591,7 +1590,7 @@ function updateFlightPlan(data) {
         
         const marker = L.marker([wp.latitude, wp.longitude], { icon: waypointIcon }).addTo(map);
         
-        marker.bindPopup(`<strong>${wp.waypointId}</strong><br>Waypoint ${index + 1}`);
+        marker.bindPopup('<strong>' + wp.waypointId + '</strong><br>Waypoint ' + (index + 1));
         
         waypointMarkers.push(marker);
     });
@@ -1966,4 +1965,5 @@ function updateFlightPlan(data) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
