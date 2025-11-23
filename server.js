@@ -164,7 +164,7 @@ wss.on('connection', (ws, req) => {
         });
       }
       else if (ws.clientType === 'mobile') {
-        session.mobileClients.dee(ws);
+        session.mobileClients.delete(ws);
         console.log(`Mobile disconnected from: ${ws.uniqueId}`);
       }
     }
@@ -179,8 +179,8 @@ function getMobileAppHTML() {
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
     <meta name="apple-mobile-web-app-capable" content="yes">
 <title>P3D Remote</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaf@1.9.4/dist/leaf.css" />
-    <script src="https://unpkg.com/leaf@1.9.4/dist/leaf.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link href="https://fonts.cdnfonts.com/css/good-times-2" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1769,8 +1769,8 @@ function updateUserAircraftDetails() {
             ws.send(JSON.stringify({ type: 'toggle_cabin', cabinType: cabinType }));
         }
 
-        function requestFlightPlan() {
-    if (ws && ws.ReadyState === WebSocket.OPEN) {
+function requestFlightPlan() {
+    if (ws && ws.readyState === WebSocket.OPEN) {  // ← lowercase 'r'
         ws.send(JSON.stringify({ type: 'request_flight_plan' }));
     }
 }
@@ -1808,6 +1808,7 @@ function updateFlightPlanLine() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
