@@ -1446,13 +1446,14 @@ function getMobileAppHTML() {
 
             // Create popup content for user aircraft
             const userPopupContent = \`
-                <div style="min-width:200px">
-                    <h4 style="margin:0 0 5px 0">Your Aircraft</h4>
-                    <p style="margin:0 0 5px 0">Aircraft: User Aircraft</p>
-                    <p style="margin:0 0 5px 0">Speed: \${Math.round(currentFlightData.groundSpeed || 0)} kts</p>
-                    <p style="margin:0 0 5px 0">Altitude: \${Math.round(currentFlightData.altitude || 0)} ft</p>
-                    <p style="margin:0">Heading: \${Math.round(currentFlightData.heading || 0)}°</p>
-                </div>
+    <div style="min-width:200px">
+        <h4 style="margin:0 0 5px 0">${userCallsign}</h4>
+        ${userFlightInfo ? `<p style="margin:0 0 5px 0">${userFlightInfo}</p>` : ""}
+        <p style="margin:0 0 5px 0">Aircraft: ${userAircraftModel}</p>
+        <p style="margin:0 0 5px 0">Speed: ${Math.round(currentFlightData.groundSpeed || 0)} kts</p>
+        <p style="margin:0 0 5px 0">Altitude: ${Math.round(currentFlightData.altitude || 0)} ft</p>
+        <p style="margin:0">Heading: ${Math.round(currentFlightData.heading || 0)}°</p>
+    </div>
             \`;
 
             userMarker.bindPopup(userPopupContent);
@@ -1535,42 +1536,43 @@ function getMobileAppHTML() {
             });
         }
 
-        function updateUserAircraftDetails() {
-            const detailsPanel = document.getElementById('aircraftDetails');
-            if (!detailsPanel) return;
-            
-            // Use the same data fields as AI aircraft for consistency
-            const callsign = currentFlightData.atcId || "Your Aircraft";
-            const flightInfo = (currentFlightData.atcAirline && currentFlightData.atcFlightNumber) 
-                ? currentFlightData.atcAirline + " " + currentFlightData.atcFlightNumber 
-                : currentFlightData.atcAirline || "";
-            const routeInfo = (currentFlightData.userDepartureAirport && currentFlightData.userDestinationAirport) 
-                ? currentFlightData.userDepartureAirport + " → " + currentFlightData.userDestinationAirport 
-                : (currentFlightData.userDestinationAirport ? "To " + currentFlightData.userDestinationAirport : "");
-            
-            detailsPanel.innerHTML = \`
-                <h4 style="margin-top:0">\${callsign}</h4>
-                \${flightInfo ? \`<p><strong>Flight:</strong> \${flightInfo}</p>\` : ""}
-                <p><strong>Aircraft:</strong> \${currentFlightData.atcType || 'User Aircraft'}</p>
-                \${routeInfo ? \`<p><strong>Route:</strong> \${routeInfo}</p>\` : ""}
-                <div class="detail-row">
-                    <span class="detail-label">Departure:</span>
-                    <span class="detail-value">\${currentFlightData.userDepartureAirport || 'N/A'}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Destination:</span>
-                    <span class="detail-value">\${currentFlightData.userDestinationAirport || 'N/A'}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Speed:</span>
-                    <span class="detail-value">\${Math.round(currentFlightData.groundSpeed || 0)} kts</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Altitude:</span>
-                    <span class="detail-value">\${Math.round(currentFlightData.altitude || 0)} ft</span>
-                </div>
-            \`;
-        }
+function updateUserAircraftDetails() {
+    const detailsPanel = document.getElementById('aircraftDetails');
+    if (!detailsPanel) return;
+    
+// Create popup content for user aircraft
+const userCallsign = currentFlightData.atcId || "Your Aircraft";
+const userFlightInfo = (currentFlightData.atcAirline && currentFlightData.atcFlightNumber) 
+    ? currentFlightData.atcAirline + " " + currentFlightData.atcFlightNumber 
+    : "";
+const userAircraftModel = currentFlightData.atcModel || currentFlightData.atcType || "User Aircraft";
+    const routeInfo = (currentFlightData.flightPlanOrigin && currentFlightData.flightPlanDestination) 
+        ? currentFlightData.flightPlanOrigin + " → " + currentFlightData.flightPlanDestination 
+        : "";
+    
+    detailsPanel.innerHTML = `
+        <h4 style="margin-top:0">${callsign}</h4>
+        ${flightInfo ? `<p><strong>Flight:</strong> ${flightInfo}</p>` : ""}
+        <p><strong>Aircraft:</strong> ${aircraftModel}</p>
+        ${routeInfo ? `<p><strong>Route:</strong> ${routeInfo}</p>` : ""}
+        <div class="detail-row">
+            <span class="detail-label">Departure:</span>
+            <span class="detail-value">${currentFlightData.flightPlanOrigin || 'N/A'}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Destination:</span>
+            <span class="detail-value">${currentFlightData.flightPlanDestination || 'N/A'}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Speed:</span>
+            <span class="detail-value">${Math.round(currentFlightData.groundSpeed || 0)} kts</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Altitude:</span>
+            <span class="detail-value">${Math.round(currentFlightData.altitude || 0)} ft</span>
+        </div>
+    `;
+}
 
         function updateAircraftDetails(aircraft) {
             const detailsPanel = document.getElementById('aircraftDetails');
@@ -1904,3 +1906,4 @@ function getMobileAppHTML() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
