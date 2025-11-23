@@ -1874,7 +1874,7 @@ function initInstruments() {
             // Draw artificial horizon
             ctx.save();
             ctx.translate(centerX, centerY);
-            ctx.rotate(-roll * Math.PI / 180);
+            ctx.rotate(roll * Math.PI / 180);
             
             // Sky
             ctx.fillStyle = '#0097ff';
@@ -2196,3 +2196,4 @@ ctx.fillText('V/S: ' + Math.round(vs) + ' fpm', 15, 55);
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
