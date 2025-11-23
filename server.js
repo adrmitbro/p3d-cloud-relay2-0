@@ -1964,7 +1964,7 @@ function initInstruments() {
             ctx.restore();
             
             // Speed tape (left side)
-            ctx.fillStyle = '#0d0d0d';
+            ctx.fillStyle = '#76767a';
             ctx.fillRect(10, centerY - 100, 60, 200);
             ctx.strokeStyle = '#333';
             ctx.strokeRect(10, centerY - 100, 60, 200);
@@ -1975,7 +1975,7 @@ function initInstruments() {
             ctx.fillText(Math.round(speed), 40, centerY + 6);
             
             // Altitude tape (right side)
-            ctx.fillStyle = '#0d0d0d';
+            ctx.fillStyle = '#76767a';
             ctx.fillRect(width - 70, centerY - 100, 60, 200);
             ctx.strokeStyle = '#333';
             ctx.strokeRect(width - 70, centerY - 100, 60, 200);
@@ -1996,7 +1996,7 @@ function initInstruments() {
             ctx.fill();
             
             // Heading tape (bottom)
-            ctx.fillStyle = '#0d0d0d';
+            ctx.fillStyle = '#76767a';
             ctx.fillRect(centerX - 100, height - 40, 200, 35);
             ctx.strokeStyle = '#333';
             ctx.strokeRect(centerX - 100, height - 40, 200, 35);
@@ -2196,4 +2196,5 @@ ctx.fillText('V/S: ' + Math.round(vs) + ' fpm', 15, 55);
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
