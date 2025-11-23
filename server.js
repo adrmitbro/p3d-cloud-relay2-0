@@ -164,7 +164,7 @@ wss.on('connection', (ws, req) => {
         });
       }
       else if (ws.clientType === 'mobile') {
-        session.mobileClients.delete(ws);
+        session.mobileClients.dee(ws);
         console.log(`Mobile disconnected from: ${ws.uniqueId}`);
       }
     }
@@ -179,8 +179,8 @@ function getMobileAppHTML() {
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
     <meta name="apple-mobile-web-app-capable" content="yes">
 <title>P3D Remote</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaf@1.9.4/dist/leaf.css" />
+    <script src="https://unpkg.com/leaf@1.9.4/dist/leaf.js"></script>
     <link href="https://fonts.cdnfonts.com/css/good-times-2" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1024,6 +1024,8 @@ function getMobileAppHTML() {
         let userHeading = 0;
         let currentFlightData = {};
         let mapInitialized = false;
+        let flightPlanPolyline = null;
+        let flightPlanWaypoints = [];
 
         function switchTab(index) {
             document.querySelectorAll('.tab').forEach((tab, i) => {
@@ -1123,6 +1125,11 @@ function getMobileAppHTML() {
                         updateMap(userLat, userLon, userHeading);
                     }
                     break;
+
+                    case 'flight_plan_waypoints':
+    flightPlanWaypoints = data.waypoints.map(wp => [wp.lat, wp.lon]);
+    updateFlightPlanLine();
+    break;
                     
                 case 'pc_offline':
                     updateStatus('offline');
@@ -1762,6 +1769,31 @@ function updateUserAircraftDetails() {
             ws.send(JSON.stringify({ type: 'toggle_cabin', cabinType: cabinType }));
         }
 
+        function requestFlightPlan() {
+    if (ws && ws.ReadyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'request_flight_plan' }));
+    }
+}
+
+function updateFlightPlanLine() {
+    if (!map) return;
+    
+    // Remove existing line
+    if (flightPlanPolyline) {
+        map.removeLayer(flightPlanPolyline);
+        flightPlanPolyline = null;
+    }
+    
+    // Draw new line if we have waypoints
+    if (flightPlanWaypoints.length > 1) {
+        flightPlanPolyline = L.polyline(flightPlanWaypoints, {
+            color: '#00ED00',
+            weight: 3,
+            opacity: 0.7
+        }).addTo(map);
+    }
+}
+
         window.onload = () => {
             const savedId = localStorage.getItem('p3d_unique_id');
             if (savedId) {
@@ -1776,5 +1808,6 @@ function updateUserAircraftDetails() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
