@@ -879,7 +879,7 @@ function getMobileAppHTML() {
         let mapCenterLat = 0;
         let mapCenterLon = 0;
         let mapZoom = 7;
-        let followUser = true;
+        let followUser = false; // Set to false by default
         let mapDragStart = null;
         let isDragging = false;
         let showAircraftLabels = true;
@@ -1160,13 +1160,16 @@ function getMobileAppHTML() {
             L.control.zoom({
                 position: 'bottomright'
             }).addTo(map);
+
+            // Set initial button text based on the default followUser state
+            document.getElementById('followUserBtn').textContent = followUser ? 'Following' : 'Follow Aircraft';
             
             // Add map controls
             map.on('mousedown', function(e) {
                 if (e.originalEvent.button === 0) { // Left click
                     isDragging = true;
                     mapDragStart = e.latlng;
-                    // Follow mode is now only toggled by the button, not by dragging
+                    // Follow mode is now only toggled by button, not by dragging
                 }
             });
             
