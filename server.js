@@ -540,9 +540,9 @@ function getMobileAppHTML() {
 
 .status-badge {
     display: inline-block;
-    padding: 3px 6px;
-    border-radius: 8px;
-    font-size: 10px;
+    padding: 3px 5px;
+    border-radius: 6px;
+    font-size: 9px;
     font-weight: bold;
     background: #333;
     color: #888;
@@ -830,17 +830,17 @@ function getMobileAppHTML() {
                             </div>
                         </div>
                         
-                        <div class='status-badges-row'>
-                            <span class='status-badge' id='apMasterStatus'>AP</span>
-                            <span class='status-badge' id='apAltStatus'>ALT</span>
-                            <span class='status-badge' id='apHdgStatus'>HDG</span>
-                            <span class='status-badge' id='apVSStatus'>V/S</span>
-                            <span class='status-badge' id='apSpeedStatus'>SPD</span>
-                            <span class='status-badge' id='apNavStatus'>NAV</span>
-                            <span class='status-badge' id='apLocStatus'>LOC</span>
-                            <span class='status-badge' id='apAppStatus'>APP</span>
-                            <span class='status-badge' id='autoThrottleStatus'>A/T</span>
-                        </div>
+<div class='status-badges-row'>
+    <span class='status-badge' id='apMasterStatus'>AP</span>
+    <span class='status-badge' id='apAltStatus'>ALT</span>
+    <span class='status-badge' id='apHdgStatus'>HDG</span>
+    <span class='status-badge' id='apVSStatus'>V/S</span>
+    <span class='status-badge' id='apSpeedStatus'>SPD</span>
+    <span class='status-badge' id='apLocStatus'>LOC</span>
+    <span class='status-badge active' id='apNavGpsStatus'>GPS</span>
+    <span class='status-badge' id='apAppStatus'>APP</span>
+    <span class='status-badge' id='autoThrottleStatus'>A/T</span>
+</div>
                     </div>
                 </div>
                 
@@ -879,7 +879,8 @@ function getMobileAppHTML() {
                         <button class='btn btn-primary' onclick='setSpeed()'>Set</button>
                     </div>
                     
-                    <div class='control-row'>
+                    <div class='control-
+                    row'>
                         <span class='control-label'>Heading Hold</span>
                         <button class='toggle-btn off' id='apHdg' onclick='toggleAP("heading")'>OFF</button>
                     </div>
@@ -1197,7 +1198,6 @@ function getMobileAppHTML() {
             updateToggle('apSpeed', data.speed);
             updateToggle('apApp', data.approach);
             updateToggle('apNav', data.nav);
-            updateToggle('apLoc', data.loc);
             updateToggle('autoThrottle', data.throttle);
             updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
             updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'ON' : 'OFF');
@@ -1252,21 +1252,21 @@ function getMobileAppHTML() {
             }
         }
 
-        function updateAutopilotStatus(data) {
-            updateStatusBadge('apMasterStatus', data.master);
-            updateStatusBadge('apAltStatus', data.altitude);
-            updateStatusBadge('apHdgStatus', data.heading);
-            updateStatusBadge('apVSStatus', data.vs);
-            updateStatusBadge('apSpeedStatus', data.speed);
-            updateStatusBadge('apNavStatus', true); // Always show NAV/GPS as active
-            updateStatusBadge('apLocStatus', data.loc);
-            updateStatusBadge('apAppStatus', data.approach);
-            updateStatusBadge('autoThrottleStatus', data.throttle);
-            
-            // Update NAV/GPS badge text to show current mode
-            const navStatusBadge = document.getElementById('apNavStatus');
-            navStatusBadge.textContent = data.navMode ? 'GPS' : 'NAV';
-        }
+function updateAutopilotStatus(data) {
+    updateStatusBadge('apMasterStatus', data.master);
+    updateStatusBadge('apAltStatus', data.altitude);
+    updateStatusBadge('apHdgStatus', data.heading);
+    updateStatusBadge('apVSStatus', data.vs);
+    updateStatusBadge('apSpeedStatus', data.speed);
+    updateStatusBadge('apLocStatus', data.nav);
+    updateStatusBadge('apAppStatus', data.approach);
+    updateStatusBadge('autoThrottleStatus', data.throttle);
+    
+    // Update NAV/GPS status - always active, just shows which mode
+    const navGpsStatus = document.getElementById('apNavGpsStatus');
+    navGpsStatus.classList.add('active');
+    navGpsStatus.textContent = data.navMode ? 'GPS' : 'NAV';
+}
 
         function updateStatusBadge(id, isActive) {
             const badge = document.getElementById(id);
@@ -1405,13 +1405,13 @@ function getMobileAppHTML() {
 
             userMarker.bindPopup(userPopupContent);
 
-            userMarker.on('click', function(e) {
-                L.DomEvent.stopPropagation(e);
-                selectedAircraft = { isUser: true };
-                updateUserAircraftDetails();
-                updateMap(lat, lon, heading);
-                updateNearbyAircraftList();
-            });
+userMarker.on('click', function(e) {
+    L.DomEvent.stopPropagation(e);
+    selectedAircraft = { isUser: true };
+    updateUserAircraftDetails();
+    updateMap(lat, lon, heading);
+    updateNearbyAircraftList();
+});
             
             aircraftMarkers.push(userMarker);
             
@@ -1782,3 +1782,4 @@ function updateUserAircraftDetails() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
