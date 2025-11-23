@@ -1540,13 +1540,13 @@ function updateUserAircraftDetails() {
             if (!detailsPanel) return;
             
             // Use the same data fields as AI aircraft for consistency
-            const callsign = currentFlightData.userAtcId || "Your Aircraft";
-            const flightInfo = (currentFlightData.userAtcAirline && currentFlightData.userAtcFlightNumber) 
-                ? currentFlightData.userAtcAirline + " " + currentFlightData.userAtcFlightNumber 
-                : currentFlightData.userAtcAirline || "";
-            const routeInfo = (currentFlightData.userDepartureAirport && currentFlightData.userDestinationAirport) 
-                ? currentFlightData.userDepartureAirport + " → " + currentFlightData.userDestinationAirport 
-                : (currentFlightData.userDestinationAirport ? "To " + currentFlightData.userDestinationAirport : "");
+const userCallsign = currentFlightData.userAtcId || "Your Aircraft";
+const userFlightInfo = (currentFlightData.userAtcAirline && currentFlightData.userAtcFlightNumber) 
+    ? currentFlightData.userAtcAirline + " " + currentFlightData.userAtcFlightNumber 
+    : "";
+const userRouteInfo = (currentFlightData.userDepartureAirport && currentFlightData.userDestinationAirport) 
+    ? currentFlightData.userDepartureAirport + " → " + currentFlightData.userDestinationAirport 
+    : "";
             
             detailsPanel.innerHTML = `
                 <h4 style="margin-top:0">${callsign}</h4>
@@ -1912,4 +1912,5 @@ function updateUserAircraftDetails() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
