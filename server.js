@@ -2654,7 +2654,7 @@ function drawSystemsPage(ctx, width, height, apData) {
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'left';
     ctx.fillText('APU', 10, yPos);
-    yPos += 15;
+    yPos += 12;
     
     const apuRunning = apData.apuRunning !== undefined ? apData.apuRunning : false;
     const apuN1 = apData.apuN1 !== undefined ? apData.apuN1 : 0;
@@ -2967,6 +2967,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
