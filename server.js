@@ -1179,7 +1179,7 @@ function switchTab(index) {
                     break;
                     
                 case 'autopilot_state':
-                    (data.data);
+                    updateAutopilotUI(data.data);
                     break;
                     
                 case 'ai_traffic':
@@ -1255,47 +1255,44 @@ function switchTab(index) {
             }
         }
 
-function updateAutopilotUI(data) {
-    // Store autopilot state globally for PFD access
-    window.lastAutopilotState = data;
-    
-    updateToggle('apMaster', data.master);
-    updateToggle('apAlt', data.altitude);
-    updateToggle('apHdg', data.heading);
-    updateToggle('apVS', data.vs);
-    updateToggle('apSpeed', data.speed);
-    updateToggle('apApp', data.approach);
-    updateToggle('apNav', data.nav);
-    updateToggle('autoThrottle', data.throttle);
-    updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
-    updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'ON' : 'OFF');
-    
-    document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
-    
-    const spoilersBtn = document.getElementById('spoilers');
-    const spoilersActive = data.spoilers > 10;
-    spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
-    spoilersBtn.textContent = spoilersActive ? 'EXTENDED' : 'RETRACTED';
-    
-    const navBtn = document.getElementById('navMode');
-    navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
-    navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
-    
-    updateToggle('lightStrobe', data.lightStrobe);
-    updateToggle('lightPanel', data.lightPanel);
-    updateToggle('lightLanding', data.lightLanding);
-    updateToggle('lightTaxi', data.lightTaxi);
-    updateToggle('lightBeacon', data.lightBeacon);
-    updateToggle('lightNav', data.lightNav);
-    updateToggle('lightLogo', data.lightLogo);
-    updateToggle('lightWing', data.lightWing);
-    updateToggle('lightRecognition', data.lightRecognition);
-    updateToggle('noSmokingSwitch', data.noSmokingSwitch);
-    updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
-    
-    updateFlightSummary(data);
-    updateAutopilotStatus(data);
-}
+        function updateAutopilotUI(data) {
+            updateToggle('apMaster', data.master);
+            updateToggle('apAlt', data.altitude);
+            updateToggle('apHdg', data.heading);
+            updateToggle('apVS', data.vs);
+            updateToggle('apSpeed', data.speed);
+            updateToggle('apApp', data.approach);
+            updateToggle('apNav', data.nav);
+            updateToggle('autoThrottle', data.throttle);
+            updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
+            updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'ON' : 'OFF');
+            
+            document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
+            
+            const spoilersBtn = document.getElementById('spoilers');
+            const spoilersActive = data.spoilers > 10;
+            spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
+            spoilersBtn.textContent = spoilersActive ? 'EXTENDED' : 'RETRACTED';
+            
+            const navBtn = document.getElementById('navMode');
+            navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
+            navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
+            
+            updateToggle('lightStrobe', data.lightStrobe);
+            updateToggle('lightPanel', data.lightPanel);
+            updateToggle('lightLanding', data.lightLanding);
+            updateToggle('lightTaxi', data.lightTaxi);
+            updateToggle('lightBeacon', data.lightBeacon);
+            updateToggle('lightNav', data.lightNav);
+            updateToggle('lightLogo', data.lightLogo);
+            updateToggle('lightWing', data.lightWing);
+            updateToggle('lightRecognition', data.lightRecognition);
+            updateToggle('noSmokingSwitch', data.noSmokingSwitch);
+            updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
+            
+            updateFlightSummary(data);
+            updateAutopilotStatus(data);
+        }
 
         function updateFlightSummary(data) {
             const speedValue = data.apSpeed !== undefined ? Math.round(data.apSpeed) : '--';
@@ -1845,15 +1842,15 @@ function initInstruments() {
             requestAnimationFrame(drawInstruments);
         }
         
-function drawInstruments() {
-    if (pfdCtx && currentFlightData) {
-        ();  // Fixed!
-    }
-    if (mfdCtx && currentFlightData) {
-        drawMFD();
-    }
-    requestAnimationFrame(drawInstruments);
-}
+        function drawInstruments() {
+            if (pfdCtx && currentFlightData) {
+                drawPFD();
+            }
+            if (mfdCtx && currentFlightData) {
+                drawMFD();
+            }
+            requestAnimationFrame(drawInstruments);
+        }
         
 function drawPFD() {
             const ctx = pfdCtx;
@@ -1874,10 +1871,9 @@ function drawPFD() {
             const heading = currentFlightData.heading || 0;
             const vs = currentFlightData.verticalSpeed || 0;
             
-            // Get autopilot status from autopilot state
-            const apData = window.lastAutopilotState || {};
-            const apMaster = apData.master || false;
-            const autoThrottle = apData.throttle || false;
+            // Get autopilot status
+            const apMaster = currentFlightData.apMaster || false;
+            const autoThrottle = currentFlightData.autoThrottle || false;
             
             // Define the horizon display area (clipped to avoid tapes)
             const horizonLeft = 75;
@@ -2157,8 +2153,8 @@ function drawPFD() {
             ctx.closePath();
             ctx.fill();
             
-            // Heading tape (bottom) - moved down to match side bar spacing (15px gap)
-            const hdgTapeY = height - 45;
+            // Heading tape (bottom)
+            const hdgTapeY = horizonBottom;
             const hdgTapeHeight = 30;
             
             ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
@@ -2411,11 +2407,6 @@ function drawPFD() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
-
-
-
-
-
 
 
 
