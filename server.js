@@ -2652,7 +2652,8 @@ function drawSystemsPage(ctx, width, height, apData) {
 // APU Section
     ctx.fillStyle = '#167fac';
     ctx.font = 'bold 10px Arial';
-    ctx.fillText('APU', rightX - 65, yPos);
+    ctx.textAlign = 'left';
+    ctx.fillText('APU', 10, yPos);
     yPos += 12;
     
     const apuRunning = apData.apuRunning !== undefined ? apData.apuRunning : false;
@@ -2661,27 +2662,22 @@ function drawSystemsPage(ctx, width, height, apData) {
     
     ctx.font = '9px Arial';
     ctx.fillStyle = '#888';
-    ctx.fillText('Status:', rightX - 65, yPos);
+    ctx.fillText('Status:', 15, yPos);
     ctx.fillStyle = apuRunning ? '#00ff00' : '#888';
-    ctx.textAlign = 'right';
-    ctx.fillText(apuRunning ? 'RUN' : 'OFF', width - 10, yPos);
+    ctx.fillText(apuRunning ? 'RUN' : 'OFF', 55, yPos);
     yPos += 12;
     
     if (apuRunning) {
-        ctx.textAlign = 'left';
         ctx.fillStyle = '#888';
-        ctx.fillText('N1:', rightX - 65, yPos);
+        ctx.fillText('N1:', 15, yPos);
         ctx.fillStyle = '#00ff00';
-        ctx.textAlign = 'right';
-        ctx.fillText(apuN1.toFixed(1) + '%', width - 10, yPos);
+        ctx.fillText(apuN1.toFixed(1) + '%', 55, yPos);
         yPos += 12;
         
-        ctx.textAlign = 'left';
         ctx.fillStyle = '#888';
-        ctx.fillText('EGT:', rightX - 65, yPos);
+        ctx.fillText('EGT:', 15, yPos);
         ctx.fillStyle = apuEgt > 600 ? '#ff8800' : '#00ff00';
-        ctx.textAlign = 'right';
-        ctx.fillText(Math.round(apuEgt) + '°C', width - 10, yPos);
+        ctx.fillText(Math.round(apuEgt) + '°C', 55, yPos);
     }
     
     // Fuel Distribution (right side)
@@ -2971,6 +2967,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
