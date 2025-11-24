@@ -2214,58 +2214,47 @@ function drawPFD() {
     ctx.fill();
     ctx.stroke();
     
-    // Top status bar with real-time autopilot status
+// Top status bar - clean autopilot mode indicators
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(0, 0, width, 30);
+    ctx.fillRect(0, 0, width, 25);
     
-    // Get current autopilot values
-    const apSpeed = apData.apSpeed || speed;
-    const apHeading = apData.apHeading || heading;
-    const apAltitude = apData.apAltitude || altitude;
-    
-    // Left side - Speed status
-    ctx.fillStyle = apData.speed ? '#00ff00' : '#888';
-    ctx.font = 'bold 11px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText('SPEED', 10, 12);
-    ctx.font = 'bold 14px Arial';
-    ctx.fillText(Math.round(apSpeed), 10, 26);
-    
-    // Center left - G/S indicator
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 11px Arial';
+    ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('G/S', width / 4, 20);
     
-    // Center - LOC status
-    ctx.fillStyle = apData.nav ? '#00ff00' : '#888';
-    ctx.fillText('LOC', width / 2, 20);
+    // SPEED indicator (left)
+    if (apData.speed) {
+        ctx.fillStyle = '#00ff00';
+        ctx.fillText('SPEED', 45, 17);
+    }
     
-    // Center right - Heading status
-    ctx.fillStyle = apData.heading ? '#00ff00' : '#888';
-    ctx.font = 'bold 11px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('HDG', width * 0.65, 12);
-    ctx.font = 'bold 14px Arial';
-    ctx.fillText(Math.round(apHeading) + '°', width * 0.65, 26);
+    // HDG indicator (center-left)
+    if (apData.heading) {
+        ctx.fillStyle = '#00ff00';
+        ctx.fillText('HDG', 110, 17);
+    }
     
-    // Right center - Altitude status
-    ctx.fillStyle = apData.altitude ? '#00ff00' : '#888';
-    ctx.font = 'bold 11px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText('ALT', width - 60, 12);
-    ctx.font = 'bold 14px Arial';
-    ctx.fillText(Math.round(apAltitude), width - 60, 26);
+    // LOC indicator (center)
+    if (apData.nav) {
+        ctx.fillStyle = '#00ff00';
+        ctx.fillText('LOC', width / 2, 17);
+    }
     
-    // Far right - AP1 and A/THR status stacked (only if active)
+    // ALT indicator (center-right)
+    if (apData.altitude) {
+        ctx.fillStyle = '#00ff00';
+        ctx.fillText('ALT', width - 110, 17);
+    }
+    
+    // AP1 and A/THR (far right, stacked)
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'right';
     
     if (apMaster) {
-        ctx.fillText('AP1', width - 10, 12);
+        ctx.fillText('AP1', width - 10, 10);
     }
     if (autoThrottle) {
-        ctx.fillText('A/THR', width - 10, 24);
+        ctx.fillText('A/THR', width - 10, 22);
     }
 }
         
@@ -2450,5 +2439,6 @@ function drawPFD() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
