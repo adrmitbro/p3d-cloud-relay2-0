@@ -1271,46 +1271,47 @@ function switchTab(index) {
         }
 
 function updateAutopilotUI(data) {
-    // Store autopilot state globally for PFD access
+    // Store autopilot state globally for PFD and button access
     window.lastAutopilotState = data;
     
+    // Update all toggle buttons
     updateToggle('apMaster', data.master);
-            updateToggle('apAlt', data.altitude);
-            updateToggle('apHdg', data.heading);
-            updateToggle('apVS', data.vs);
-            updateToggle('apSpeed', data.speed);
-            updateToggle('apApp', data.approach);
-            updateToggle('apNav', data.nav);
-            updateToggle('autoThrottle', data.throttle);
-            updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
-            updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'ON' : 'OFF');
-            
-            document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
-            
-            const spoilersBtn = document.getElementById('spoilers');
-            const spoilersActive = data.spoilers > 10;
-            spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
-            spoilersBtn.textContent = spoilersActive ? 'EXTENDED' : 'RETRACTED';
-            
-            const navBtn = document.getElementById('navMode');
-            navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
-            navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
-            
-            updateToggle('lightStrobe', data.lightStrobe);
-            updateToggle('lightPanel', data.lightPanel);
-            updateToggle('lightLanding', data.lightLanding);
-            updateToggle('lightTaxi', data.lightTaxi);
-            updateToggle('lightBeacon', data.lightBeacon);
-            updateToggle('lightNav', data.lightNav);
-            updateToggle('lightLogo', data.lightLogo);
-            updateToggle('lightWing', data.lightWing);
-            updateToggle('lightRecognition', data.lightRecognition);
-            updateToggle('noSmokingSwitch', data.noSmokingSwitch);
-            updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
-            
-            updateFlightSummary(data);
-            updateAutopilotStatus(data);
-        }
+    updateToggle('apAlt', data.altitude);
+    updateToggle('apHdg', data.heading);
+    updateToggle('apVS', data.vs);
+    updateToggle('apSpeed', data.speed);
+    updateToggle('apApp', data.approach);
+    updateToggle('apNav', data.nav);
+    updateToggle('autoThrottle', data.throttle);
+    updateToggle('gear', data.gear, data.gear ? 'DOWN' : 'UP');
+    updateToggle('parkingBrake', data.parkingBrake, data.parkingBrake ? 'ON' : 'OFF');
+    
+    document.getElementById('flapsPos').textContent = Math.round(data.flaps) + '%';
+    
+    const spoilersBtn = document.getElementById('spoilers');
+    const spoilersActive = data.spoilers > 10;
+    spoilersBtn.className = 'toggle-btn ' + (spoilersActive ? 'on' : 'off');
+    spoilersBtn.textContent = spoilersActive ? 'EXTENDED' : 'RETRACTED';
+    
+    const navBtn = document.getElementById('navMode');
+    navBtn.textContent = data.navMode ? 'GPS' : 'NAV';
+    navBtn.className = 'toggle-btn ' + (data.navMode ? 'on' : 'off');
+    
+    updateToggle('lightStrobe', data.lightStrobe);
+    updateToggle('lightPanel', data.lightPanel);
+    updateToggle('lightLanding', data.lightLanding);
+    updateToggle('lightTaxi', data.lightTaxi);
+    updateToggle('lightBeacon', data.lightBeacon);
+    updateToggle('lightNav', data.lightNav);
+    updateToggle('lightLogo', data.lightLogo);
+    updateToggle('lightWing', data.lightWing);
+    updateToggle('lightRecognition', data.lightRecognition);
+    updateToggle('noSmokingSwitch', data.noSmokingSwitch);
+    updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
+    
+    updateFlightSummary(data);
+    updateAutopilotStatus(data);
+}
 
         function updateFlightSummary(data) {
             const speedValue = data.apSpeed !== undefined ? Math.round(data.apSpeed) : '--';
@@ -2638,7 +2639,7 @@ function drawBleedPage(ctx, width, height, apData) {
     // APU Bleed at top
     ctx.fillStyle = '#167fac';
     ctx.font = 'bold 10px Arial';
-    ctx.fillText('APU', centerX, 35);
+    ctx.fillText('APU', centerX, 30);
     
     const apuBleed = apData.apuRunning !== undefined ? apData.apuRunning : false;
     
@@ -2646,13 +2647,13 @@ function drawBleedPage(ctx, width, height, apData) {
     ctx.strokeStyle = apuBleed ? '#00ff00' : '#888';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(centerX, 50, 12, 0, Math.PI * 2);
+    ctx.arc(centerX, 45, 10, 0, Math.PI * 2);
     ctx.stroke();
     
     if (apuBleed) {
         ctx.fillStyle = '#00ff00';
         ctx.beginPath();
-        ctx.arc(centerX, 50, 8, 0, Math.PI * 2);
+        ctx.arc(centerX, 45, 6, 0, Math.PI * 2);
         ctx.fill();
     }
     
@@ -2660,8 +2661,8 @@ function drawBleedPage(ctx, width, height, apData) {
     ctx.strokeStyle = apuBleed ? '#00ff00' : '#888';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(centerX, 62, 0, Math.PI * 2);
-    ctx.lineTo(centerX, 95);
+    ctx.moveTo(centerX, 55);
+    ctx.lineTo(centerX, 85);
     ctx.stroke();
     
     // Engine bleeds
@@ -2672,18 +2673,18 @@ function drawBleedPage(ctx, width, height, apData) {
     ctx.fillStyle = '#167fac';
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'right';
-    ctx.fillText('ENG 1', 70, 115);
+    ctx.fillText('ENG 1', 65, 105);
     
     ctx.strokeStyle = eng1Bleed ? '#00ff00' : '#888';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(85, 110, 12, 0, Math.PI * 2);
+    ctx.arc(80, 100, 10, 0, Math.PI * 2);
     ctx.stroke();
     
     if (eng1Bleed) {
         ctx.fillStyle = '#00ff00';
         ctx.beginPath();
-        ctx.arc(85, 110, 8, 0, Math.PI * 2);
+        ctx.arc(80, 100, 6, 0, Math.PI * 2);
         ctx.fill();
     }
     
@@ -2691,26 +2692,26 @@ function drawBleedPage(ctx, width, height, apData) {
     ctx.strokeStyle = eng1Bleed ? '#00ff00' : '#888';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(97, 110);
-    ctx.lineTo(centerX, 110);
+    ctx.moveTo(90, 100);
+    ctx.lineTo(centerX, 100);
     ctx.stroke();
     
     // Engine 2 (right)
     ctx.fillStyle = '#167fac';
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText('ENG 2', 230, 115);
+    ctx.fillText('ENG 2', 235, 105);
     
     ctx.strokeStyle = eng2Bleed ? '#00ff00' : '#888';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(215, 110, 12, 0, Math.PI * 2);
+    ctx.arc(220, 100, 10, 0, Math.PI * 2);
     ctx.stroke();
     
     if (eng2Bleed) {
         ctx.fillStyle = '#00ff00';
         ctx.beginPath();
-        ctx.arc(215, 110, 8, 0, Math.PI * 2);
+        ctx.arc(220, 100, 6, 0, Math.PI * 2);
         ctx.fill();
     }
     
@@ -2718,24 +2719,24 @@ function drawBleedPage(ctx, width, height, apData) {
     ctx.strokeStyle = eng2Bleed ? '#00ff00' : '#888';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(centerX, 110);
-    ctx.lineTo(203, 110);
+    ctx.moveTo(centerX, 100);
+    ctx.lineTo(210, 100);
     ctx.stroke();
     
     // Center manifold junction
     ctx.strokeStyle = (eng1Bleed || eng2Bleed || apuBleed) ? '#00ff00' : '#888';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(centerX, 95);
-    ctx.lineTo(centerX, 125);
+    ctx.moveTo(centerX, 85);
+    ctx.lineTo(centerX, 115);
     ctx.stroke();
     
-    // Pack 1 and Pack 2 (air conditioning packs)
+    // Pack 1 and Pack 2 - MOVED DOWN TO AVOID OVERLAP
     ctx.fillStyle = '#167fac';
-    ctx.font = 'bold 10px Arial';
+    ctx.font = 'bold 9px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('PACK 1', 100, 155);
-    ctx.fillText('PACK 2', 200, 155);
+    ctx.fillText('PACK 1', 100, 145);
+    ctx.fillText('PACK 2', 200, 145);
     
     const pack1On = eng1Bleed || apuBleed;
     const pack2On = eng2Bleed || apuBleed;
@@ -2743,33 +2744,33 @@ function drawBleedPage(ctx, width, height, apData) {
     // Pack 1 box
     ctx.strokeStyle = pack1On ? '#00ff00' : '#888';
     ctx.lineWidth = 2;
-    ctx.strokeRect(70, 165, 60, 30);
+    ctx.strokeRect(70, 152, 60, 28);
     
     ctx.fillStyle = pack1On ? '#00ff00' : '#888';
     ctx.font = '9px Arial';
-    ctx.fillText('ON', 100, 183);
+    ctx.fillText('ON', 100, 169);
     
     // Pack 2 box
     ctx.strokeStyle = pack2On ? '#00ff00' : '#888';
     ctx.lineWidth = 2;
-    ctx.strokeRect(170, 165, 60, 30);
+    ctx.strokeRect(170, 152, 60, 28);
     
     ctx.fillStyle = pack2On ? '#00ff00' : '#888';
     ctx.font = '9px Arial';
-    ctx.fillText('ON', 200, 183);
+    ctx.fillText('ON', 200, 169);
     
     // Lines to packs
     ctx.strokeStyle = pack1On ? '#00ff00' : '#888';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(100, 125);
-    ctx.lineTo(100, 165);
+    ctx.moveTo(100, 115);
+    ctx.lineTo(100, 152);
     ctx.stroke();
     
     ctx.strokeStyle = pack2On ? '#00ff00' : '#888';
     ctx.beginPath();
-    ctx.moveTo(200, 125);
-    ctx.lineTo(200, 165);
+    ctx.moveTo(200, 115);
+    ctx.lineTo(200, 152);
     ctx.stroke();
     
     // Pressure values
@@ -2779,8 +2780,8 @@ function drawBleedPage(ctx, width, height, apData) {
     ctx.fillStyle = '#00ff00';
     ctx.font = 'bold 9px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(bleedPsi1.toFixed(0) + ' PSI', 85, 130);
-    ctx.fillText(bleedPsi2.toFixed(0) + ' PSI', 215, 130);
+    ctx.fillText(bleedPsi1.toFixed(0) + ' PSI', 80, 120);
+    ctx.fillText(bleedPsi2.toFixed(0) + ' PSI', 220, 120);
 }
 
 function drawPressPage(ctx, width, height, apData) {
@@ -2790,7 +2791,7 @@ function drawPressPage(ctx, width, height, apData) {
     ctx.fillText('PRESS', width / 2, 15);
     
     const altitude = currentFlightData.altitude || 0;
-    const cabinAlt = altitude * 0.7; // Simplified cabin altitude
+    const cabinAlt = altitude * 0.7;
     const cabinVS = (currentFlightData.verticalSpeed || 0) * 0.6;
     const diffPsi = altitude > 1000 ? Math.min(8.5, altitude / 5000) : 0;
     
@@ -2821,15 +2822,15 @@ function drawPressPage(ctx, width, height, apData) {
     ctx.font = '10px Arial';
     ctx.fillText('FPM', 200, 72);
     
-    // Differential pressure gauge
+    // Differential pressure gauge - MOVED DOWN
     const centerX = width / 2;
-    const gaugeY = 120;
-    const gaugeRadius = 45;
+    const gaugeY = 130;
+    const gaugeRadius = 40;
     
     ctx.fillStyle = '#167fac';
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('DIFF PRESSURE', centerX, 95);
+    ctx.fillText('DIFF PRESSURE', centerX, 100);
     
     // Gauge background
     ctx.strokeStyle = '#333';
@@ -2846,31 +2847,29 @@ function drawPressPage(ctx, width, height, apData) {
     ctx.arc(centerX, gaugeY, gaugeRadius, Math.PI * 0.75, Math.PI * 0.75 + diffAngle);
     ctx.stroke();
     
-    // Gauge value text
+    // Gauge value text - BELOW GAUGE
     ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText(diffPsi.toFixed(1), centerX, gaugeY + 5);
-    ctx.font = '9px Arial';
-    ctx.fillText('PSI', centerX, gaugeY + 16);
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText(diffPsi.toFixed(1) + ' PSI', centerX, gaugeY + 30);
     
     // Outflow valve
     ctx.fillStyle = '#167fac';
     ctx.font = 'bold 10px Arial';
-    ctx.fillText('OUTFLOW VALVE', centerX, 185);
+    ctx.fillText('OUTFLOW VALVE', centerX, 195);
     
     const valveOpen = altitude > 5000 ? 30 + (altitude / 1000) * 2 : 0;
     
     // Valve indicator
     ctx.strokeStyle = '#888';
     ctx.lineWidth = 2;
-    ctx.strokeRect(centerX - 50, 195, 100, 20);
+    ctx.strokeRect(centerX - 50, 205, 100, 20);
     
     ctx.fillStyle = '#00ff00';
-    ctx.fillRect(centerX - 48, 197, (valveOpen * 0.96), 16);
+    ctx.fillRect(centerX - 48, 207, (valveOpen * 0.96), 16);
     
     ctx.fillStyle = '#00ff00';
     ctx.font = 'bold 10px Arial';
-    ctx.fillText(Math.round(valveOpen) + '%', centerX, 208);
+    ctx.fillText(Math.round(valveOpen) + '%', centerX, 218);
 }
 
 function drawAPUPage(ctx, width, height, apData) {
@@ -2981,97 +2980,6 @@ function drawAPUPage(ctx, width, height, apData) {
     ctx.fillText(apuRunning ? 'ON' : 'OFF', width - 80, 223);
 }
 
-function drawHydPage(ctx, width, height, apData) {
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('HYD', width / 2, 15);
-    
-    const hydGreen = apData.hydraulicA !== undefined ? apData.hydraulicA : 3000;
-    const hydBlue = apData.hydraulicB !== undefined ? apData.hydraulicB : 3000;
-    const hydYellow = 3000; // Add if available
-    
-    const centerX = width / 2;
-    
-    // Green system (left)
-    drawHydraulicSystem(ctx, 60, 50, 'GREEN', hydGreen, '#00ff00');
-    
-    // Blue system (center)
-    drawHydraulicSystem(ctx, centerX, 50, 'BLUE', hydBlue, '#167fac');
-    
-    // Yellow system (right)
-    drawHydraulicSystem(ctx, 240, 50, 'YELLOW', hydYellow, '#ffff00');
-    
-    // Reservoir indicators at bottom
-    ctx.fillStyle = '#888';
-    ctx.font = '9px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('RESERVOIR', centerX, height - 35);
-    
-    // Green reservoir
-    drawReservoir(ctx, 60, height - 25, hydGreen > 2500, '#00ff00');
-    
-    // Blue reservoir
-    drawReservoir(ctx, centerX, height - 25, hydBlue > 2500, '#167fac');
-    
-    // Yellow reservoir
-    drawReservoir(ctx, 240, height - 25, hydYellow > 2500, '#ffff00');
-}
-
-function drawHydraulicSystem(ctx, x, y, label, pressure, color) {
-    // Label
-    ctx.fillStyle = color;
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(label, x, y);
-    
-    // Pressure gauge
-    const gaugeRadius = 30;
-    const gaugeY = y + 40;
-    
-    // Background
-    ctx.strokeStyle = '#1a1a1a';
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(x, gaugeY, gaugeRadius, Math.PI * 0.75, Math.PI * 2.25);
-    ctx.stroke();
-    
-    // Pressure arc
-    const pressAngle = (pressure / 3500) * (Math.PI * 1.5);
-    ctx.strokeStyle = pressure < 2500 ? '#ff8800' : color;
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(x, gaugeY, gaugeRadius, Math.PI * 0.75, Math.PI * 0.75 + pressAngle);
-    ctx.stroke();
-    
-    // Pressure value
-    ctx.fillStyle = pressure < 2500 ? '#ff8800' : color;
-    ctx.font = 'bold 12px Arial';
-    ctx.fillText(Math.round(pressure), x, gaugeY + 4);
-    ctx.font = '8px Arial';
-    ctx.fillText('PSI', x, gaugeY + 14);
-    
-    // Pump indicator
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x - 20, gaugeY + 30, 40, 20);
-    
-    ctx.fillStyle = color;
-    ctx.font = '9px Arial';
-    ctx.fillText('PUMP', x, gaugeY + 43);
-}
-
-function drawReservoir(ctx, x, y, ok, color) {
-    ctx.strokeStyle = ok ? color : '#ff8800';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x - 15, y, 30, 20);
-    
-    if (ok) {
-        ctx.fillStyle = color;
-        ctx.fillRect(x - 13, y + 2, 26, 16);
-    }
-}
-
 function drawFuelPage(ctx, width, height, apData) {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px Arial';
@@ -3111,8 +3019,10 @@ function drawFuelPage(ctx, width, height, apData) {
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('LEFT', 75, 75);
-    ctx.font = '9px Arial';
-    ctx.fillText(fuelLeftLbs.toLocaleString(), 75, 92);
+    ctx.font = '8px Arial';
+    // SMALLER FONT FOR LBS VALUES
+    const leftText = fuelLeftLbs > 9999 ? (fuelLeftLbs / 1000).toFixed(1) + 'K' : fuelLeftLbs.toString();
+    ctx.fillText(leftText, 75, 92);
     ctx.fillText('LBS', 75, 102);
     
     // Center tank
@@ -3128,8 +3038,9 @@ function drawFuelPage(ctx, width, height, apData) {
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('CTR', centerX, 45);
-    ctx.font = '9px Arial';
-    ctx.fillText(fuelCenterLbs.toLocaleString(), centerX, 68);
+    ctx.font = '8px Arial';
+    const centerText = fuelCenterLbs > 9999 ? (fuelCenterLbs / 1000).toFixed(1) + 'K' : fuelCenterLbs.toString();
+    ctx.fillText(centerText, centerX, 68);
     ctx.fillText('LBS', centerX, 78);
     
     // Right tank
@@ -3151,8 +3062,9 @@ function drawFuelPage(ctx, width, height, apData) {
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('RIGHT', width - 75, 75);
-    ctx.font = '9px Arial';
-    ctx.fillText(fuelRightLbs.toLocaleString(), width - 75, 92);
+    ctx.font = '8px Arial';
+    const rightText = fuelRightLbs > 9999 ? (fuelRightLbs / 1000).toFixed(1) + 'K' : fuelRightLbs.toString();
+    ctx.fillText(rightText, width - 75, 92);
     ctx.fillText('LBS', width - 75, 102);
     
     // Total fuel on board
@@ -3161,8 +3073,9 @@ function drawFuelPage(ctx, width, height, apData) {
     ctx.fillText('TOTAL FUEL', centerX, 125);
     
     ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 18px Arial';
-    ctx.fillText(fuelTotalLbs.toLocaleString(), centerX, 145);
+    ctx.font = 'bold 16px Arial';
+    const totalText = fuelTotalLbs > 99999 ? (fuelTotalLbs / 1000).toFixed(1) + 'K' : fuelTotalLbs.toLocaleString();
+    ctx.fillText(totalText, centerX, 145);
     ctx.font = '10px Arial';
     ctx.fillText('LBS', centerX, 157);
     
@@ -3186,6 +3099,7 @@ function drawFuelPage(ctx, width, height, apData) {
     ctx.fillText('ENG 2: ' + Math.round(ff2) + ' PPH', width - 70, 220);
 }
 
+
 function drawElecPage(ctx, width, height, apData) {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px Arial';
@@ -3196,26 +3110,20 @@ function drawElecPage(ctx, width, height, apData) {
     const gen1 = apData.generator1 !== undefined ? apData.generator1 : true;
     const gen2 = apData.generator2 !== undefined ? apData.generator2 : true;
     const apuGen = apData.apuRunning !== undefined ? apData.apuRunning : false;
-    const extPower = false; // Add if available
     
     const centerX = width / 2;
     
     // Generators at top
-    // GEN 1
-    drawGenerator(ctx, 50, 40, 'GEN 1', gen1, '#00ff00');
-    
-    // GEN 2
-    drawGenerator(ctx, 250, 40, 'GEN 2', gen2, '#00ff00');
-    
-    // APU GEN
+    drawGenerator(ctx, 60, 40, 'GEN 1', gen1, '#00ff00');
+    drawGenerator(ctx, 240, 40, 'GEN 2', gen2, '#00ff00');
     drawGenerator(ctx, centerX, 40, 'APU GEN', apuGen, '#00ff00');
     
-    // Main buses
+    // Main buses - MOVED DOWN
     ctx.fillStyle = '#167fac';
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('AC BUS 1', 75, 115);
-    ctx.fillText('AC BUS 2', 225, 115);
+    ctx.fillText('AC BUS 1', 75, 125);
+    ctx.fillText('AC BUS 2', 225, 125);
     
     // AC Bus boxes
     const bus1Powered = gen1 || apuGen;
@@ -3223,11 +3131,11 @@ function drawElecPage(ctx, width, height, apData) {
     
     ctx.strokeStyle = bus1Powered ? '#00ff00' : '#888';
     ctx.lineWidth = 2;
-    ctx.strokeRect(40, 125, 70, 30);
+    ctx.strokeRect(40, 135, 70, 30);
     
     ctx.fillStyle = bus1Powered ? '#00ff00' : '#888';
     ctx.font = 'bold 12px Arial';
-    ctx.fillText(bus1Powered ? '115V' : 'OFF', 75, 143);
+    ctx.fillText(bus1Powered ? '115V' : 'OFF', 75, 153);
     
     ctx.strokeStyle = bus2Powered ? '#00ff00' : '#888';
     ctx.strokeRect(190, 125, 70, 30);
@@ -3235,46 +3143,46 @@ function drawElecPage(ctx, width, height, apData) {
     ctx.fillStyle = bus2Powered ? '#00ff00' : '#888';
     ctx.fillText(bus2Powered ? '115V' : 'OFF', 225, 143);
     
-    // Battery
-    ctx.fillStyle = '#167fac';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('BAT', centerX, 180);
-    
-    ctx.strokeStyle = batteryVoltage > 20 ? '#00ff00' : '#ff8800';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(centerX - 35, 190, 70, 30);
-    
-    ctx.fillStyle = batteryVoltage > 20 ? '#00ff00' : '#ff8800';
-    ctx.font = 'bold 14px Arial';
-    ctx.fillText(batteryVoltage.toFixed(1) + 'V', centerX, 209);
-    
-    // Connection lines
-    ctx.strokeStyle = gen1 ? '#00ff00' : '#888';
-    ctx.lineWidth = 2;
+// Battery - MOVED DOWN
+ctx.fillStyle = '#167fac';
+ctx.font = 'bold 10px Arial';
+ctx.textAlign = 'center';
+ctx.fillText('BAT', centerX, 190);
+
+ctx.strokeStyle = batteryVoltage > 20 ? '#00ff00' : '#ff8800';
+ctx.lineWidth = 2;
+ctx.strokeRect(centerX - 35, 200, 70, 30);
+
+ctx.fillStyle = batteryVoltage > 20 ? '#00ff00' : '#ff8800';
+ctx.font = 'bold 14px Arial';
+ctx.fillText(batteryVoltage.toFixed(1) + 'V', centerX, 219);
+
+// Connection lines - ADJUSTED
+ctx.strokeStyle = gen1 ? '#00ff00' : '#888';
+ctx.lineWidth = 2;
+ctx.beginPath();
+ctx.moveTo(60, 75);
+ctx.lineTo(75, 125);
+ctx.stroke();
+
+ctx.strokeStyle = gen2 ? '#00ff00' : '#888';
+ctx.beginPath();
+ctx.moveTo(240, 75);
+ctx.lineTo(225, 125);
+ctx.stroke();
+
+if (apuGen) {
+    ctx.strokeStyle = '#00ff00';
     ctx.beginPath();
-    ctx.moveTo(50, 80);
-    ctx.lineTo(75, 115);
+    ctx.moveTo(centerX - 10, 75);
+    ctx.lineTo(75, 125);
     ctx.stroke();
     
-    ctx.strokeStyle = gen2 ? '#00ff00' : '#888';
     ctx.beginPath();
-    ctx.moveTo(250, 80);
-    ctx.lineTo(225, 115);
+    ctx.moveTo(centerX + 10, 75);
+    ctx.lineTo(225, 125);
     ctx.stroke();
-    
-    if (apuGen) {
-        ctx.strokeStyle = '#00ff00';
-        ctx.beginPath();
-        ctx.moveTo(centerX, 80);
-        ctx.lineTo(75, 115);
-        ctx.stroke();
-        
-        ctx.beginPath();
-        ctx.moveTo(centerX, 80);
-        ctx.lineTo(225, 115);
-        ctx.stroke();
-    }
+}
 }
 
 function drawGenerator(ctx, x, y, label, active, color) {
@@ -3509,6 +3417,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
