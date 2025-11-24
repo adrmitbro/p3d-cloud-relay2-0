@@ -836,9 +836,13 @@ function getMobileAppHTML() {
                 <canvas id='mfdCanvas' class='instrument' width='300' height='300'></canvas>
             </div>
         </div>
-        <div class='instrument-row'>
+<div class='instrument-row'>
             <div class='instrument-container' style='width: 100%; max-width: 320px;'>
-                <span class='instrument-label'>Engine Indication & Crew Alerting</span>
+                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;'>
+                    <button onclick='prevEICASPage()' style='background: #1a1a1a; border: 1px solid #333; color: #167fac; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-size: 16px;'>◀</button>
+                    <span class='instrument-label' style='position: static;' id='eicasPageLabel'>ENGINE</span>
+                    <button onclick='nextEICASPage()' style='background: #1a1a1a; border: 1px solid #333; color: #167fac; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-size: 16px;'>▶</button>
+                </div>
                 <canvas id='eicasCanvas' class='instrument' width='300' height='250'></canvas>
             </div>
         </div>
@@ -1094,6 +1098,8 @@ let mfdCanvas = null;
 let mfdCtx = null;
 let eicasCanvas = null;
 let eicasCtx = null;
+let eicasPage = 0;
+let numEngines = 2;
 
 function switchTab(index) {
             document.querySelectorAll('.tab').forEach((tab, i) => {
@@ -1854,6 +1860,21 @@ function initInstruments() {
     // Start drawing loop
     requestAnimationFrame(drawInstruments);
 }
+
+function prevEICASPage() {
+    eicasPage = (eicasPage - 1 + 3) % 3;
+    updateEICASPageLabel();
+}
+
+function nextEICASPage() {
+    eicasPage = (eicasPage + 1) % 3;
+    updateEICASPageLabel();
+}
+
+function updateEICASPageLabel() {
+    const labels = ['ENGINE', 'SYSTEMS', 'FLIGHT CONTROLS'];
+    document.getElementById('eicasPageLabel').textContent = labels[eicasPage];
+}
         
 function drawInstruments() {
     if (pfdCtx && currentFlightData) {
@@ -2438,7 +2459,7 @@ function drawPFD() {
             ctx.fillText('HDG ' + Math.round(heading) + '°', centerX, height - 15);
         }
 
-        function drawEICAS() {
+function drawEICAS() {
     const ctx = eicasCtx;
     const width = eicasCanvas.width;
     const height = eicasCanvas.height;
@@ -2447,80 +2468,456 @@ function drawPFD() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, width, height);
     
-// Get real engine data
-const apData = window.lastAutopilotState || {};
-const n1_1 = apData.engine1N1 || 0;
-const n1_2 = apData.engine2N1 || 0;
-const n2_1 = apData.engine1N2 || 0;
-const n2_2 = apData.engine2N2 || 0;
-const egt_1 = apData.engine1EGT || 0;
-const egt_2 = apData.engine2EGT || 0;
-const ff_1 = apData.engine1FuelFlow || 0;
-const ff_2 = apData.engine2FuelFlow || 0;
-const fuelTotal = apData.fuelTotalQuantity || 0;
+    const apData = window.lastAutopilotState || {};
+    
+    // Auto-detect number of engines
+    const hasEngine3 = apData.engine3N1 !== undefined && apData.engine3N1 > 0;
+    const hasEngine4 = apData.engine4N1 !== undefined && apData.engine4N1 > 0;
+    numEngines = hasEngine4 ? 4 : (hasEngine3 ? 3 : 2);
+    
+    if (eicasPage === 0) {
+        drawEnginePage(ctx, width, height, apData);
+    } else if (eicasPage === 1) {
+        drawSystemsPage(ctx, width, height, apData);
+    } else {
+        drawFlightControlsPage(ctx, width, height, apData);
+    }
+}
+
+function drawEnginePage(ctx, width, height, apData) {
+    const n1_1 = apData.engine1N1 || 0;
+    const n1_2 = apData.engine2N1 || 0;
+    const n1_3 = apData.engine3N1 || 0;
+    const n1_4 = apData.engine4N1 || 0;
+    const n2_1 = apData.engine1N2 || 0;
+    const n2_2 = apData.engine2N2 || 0;
+    const n2_3 = apData.engine3N2 || 0;
+    const n2_4 = apData.engine4N2 || 0;
+    const egt_1 = apData.engine1EGT || 0;
+    const egt_2 = apData.engine2EGT || 0;
+    const egt_3 = apData.engine3EGT || 0;
+    const egt_4 = apData.engine4EGT || 0;
+    const ff_1 = apData.engine1FuelFlow || 0;
+    const ff_2 = apData.engine2FuelFlow || 0;
+    const ff_3 = apData.engine3FuelFlow || 0;
+    const ff_4 = apData.engine4FuelFlow || 0;
+    const fuelTotal = apData.fuelTotalQuantity || 0;
     
     // Draw title
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 14px Arial';
+    ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('ENGINE', width / 2, 20);
+    ctx.fillText('ENGINE', width / 2, 15);
     
-    // Engine 1 and Engine 2 columns
-    const engine1X = width * 0.3;
-    const engine2X = width * 0.7;
-    const startY = 40;
+    // Calculate layout based on engine count
+    const spacing = width / (numEngines + 1);
+    const engineX = [];
+    for (let i = 0; i < numEngines; i++) {
+        engineX.push(spacing * (i + 1));
+    }
+    
+    const startY = 25;
+    const rowHeight = 20;
     
     // Engine labels
-    ctx.font = 'bold 12px Arial';
+    ctx.font = 'bold 10px Arial';
     ctx.fillStyle = '#888';
-    ctx.fillText('1', engine1X, startY);
-    ctx.fillText('2', engine2X, startY);
+    for (let i = 0; i < numEngines; i++) {
+        ctx.fillText((i + 1).toString(), engineX[i], startY);
+    }
     
-// N1 Display - Engine 1
-ctx.fillStyle = n1_1 > 95 ? '#ff0000' : '#00ff00';
-ctx.fillText(n1_1.toFixed(1), engine1X, startY + 30);
-
-// N1 Display - Engine 2
-ctx.fillStyle = n1_2 > 95 ? '#ff0000' : '#00ff00';
-ctx.fillText(n1_2.toFixed(1), engine2X, startY + 30);
-
-// N1 Arc Gauges
-drawArcGauge(ctx, engine1X, startY + 55, 35, n1_1, 100, n1_1 > 95 ? '#ff0000' : '#00ff00');
-drawArcGauge(ctx, engine2X, startY + 55, 35, n1_2, 100, n1_2 > 95 ? '#ff0000' : '#00ff00');
-
-// N2 Display
-ctx.fillText(n2_1.toFixed(1), engine1X, startY + 100);
-ctx.fillText(n2_2.toFixed(1), engine2X, startY + 100);
-
-// EGT Display
-ctx.fillStyle = egt_1 > 800 ? '#ff8800' : '#fff';
-ctx.fillText(Math.round(egt_1), engine1X, startY + 130);
-ctx.fillStyle = egt_2 > 800 ? '#ff8800' : '#fff';
-ctx.fillText(Math.round(egt_2), engine2X, startY + 130);
-
-// Fuel Flow
-ctx.fillText(Math.round(ff_1), engine1X, startY + 160);
-ctx.fillText(Math.round(ff_2), engine2X, startY + 160);
-
-// Fuel quantity - calculate percentage
-const fuelMaxGallons = 10000; // Adjust based on your aircraft
-const fuelPercent = Math.min(100, (fuelTotal / fuelMaxGallons) * 100);
-const fuelKg = Math.round(fuelTotal * 0.8); // Rough conversion
+    // N1 Label
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.fillText('N1%', 5, startY + rowHeight + 10);
     
-    // Fuel bar
-    const barWidth = width - 100;
-    const barX = 50;
-    const barY = height - 32;
+    // N1 Values
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 11px Arial';
+    const n1Values = [n1_1, n1_2, n1_3, n1_4];
+    for (let i = 0; i < numEngines; i++) {
+        ctx.fillStyle = n1Values[i] > 95 ? '#ff0000' : '#00ff00';
+        ctx.fillText(n1Values[i].toFixed(1), engineX[i], startY + rowHeight + 10);
+    }
+    
+    // N1 Arc Gauges - smaller
+    const arcY = startY + rowHeight + 30;
+    const arcRadius = numEngines === 4 ? 18 : 22;
+    for (let i = 0; i < numEngines; i++) {
+        drawArcGauge(ctx, engineX[i], arcY, arcRadius, n1Values[i], 100, n1Values[i] > 95 ? '#ff0000' : '#00ff00');
+    }
+    
+    // N2 Label
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.fillText('N2%', 5, arcY + arcRadius + 22);
+    
+    // N2 Values
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 10px Arial';
+    const n2Values = [n2_1, n2_2, n2_3, n2_4];
+    for (let i = 0; i < numEngines; i++) {
+        ctx.fillStyle = '#fff';
+        ctx.fillText(n2Values[i].toFixed(1), engineX[i], arcY + arcRadius + 22);
+    }
+    
+    // EGT Label
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.fillText('EGT°C', 5, arcY + arcRadius + 38);
+    
+    // EGT Values
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 10px Arial';
+    const egtValues = [egt_1, egt_2, egt_3, egt_4];
+    for (let i = 0; i < numEngines; i++) {
+        ctx.fillStyle = egtValues[i] > 800 ? '#ff8800' : '#fff';
+        ctx.fillText(Math.round(egtValues[i]), engineX[i], arcY + arcRadius + 38);
+    }
+    
+    // Fuel Flow Label
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.fillText('FF kg/h', 5, arcY + arcRadius + 54);
+    
+    // Fuel Flow Values
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 10px Arial';
+    const ffValues = [ff_1, ff_2, ff_3, ff_4];
+    for (let i = 0; i < numEngines; i++) {
+        ctx.fillStyle = '#00ff00';
+        ctx.fillText(Math.round(ffValues[i]), engineX[i], arcY + arcRadius + 54);
+    }
+    
+    // Fuel quantity bar at bottom
+    const barY = height - 30;
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('FUEL', 10, barY - 5);
+    
+    const fuelMaxGallons = 10000;
+    const fuelPercent = Math.min(100, (fuelTotal / fuelMaxGallons) * 100);
+    const fuelKg = Math.round(fuelTotal * 0.8);
+    
+    const barWidth = width - 60;
+    const barX = 10;
     
     ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(barX, barY, barWidth, 8);
+    ctx.fillRect(barX, barY, barWidth, 10);
     
     ctx.fillStyle = fuelPercent < 20 ? '#ff8800' : '#00ff00';
-    ctx.fillRect(barX, barY, (barWidth * fuelPercent) / 100, 8);
+    ctx.fillRect(barX, barY, (barWidth * fuelPercent) / 100, 10);
     
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 1;
-    ctx.strokeRect(barX, barY, barWidth, 8);
+    ctx.strokeRect(barX, barY, barWidth, 10);
+    
+    // Fuel quantity text
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 9px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText(fuelKg + ' kg', width - 10, barY + 8);
+}
+
+function drawSystemsPage(ctx, width, height, apData) {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('SYSTEMS', width / 2, 15);
+    
+    const leftX = 75;
+    const rightX = 225;
+    let yPos = 35;
+    
+    // Hydraulics Section
+    ctx.fillStyle = '#167fac';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('HYDRAULICS', 10, yPos);
+    yPos += 15;
+    
+    const hydA = apData.hydraulicA !== undefined ? apData.hydraulicA : 3000;
+    const hydB = apData.hydraulicB !== undefined ? apData.hydraulicB : 3000;
+    
+    drawSystemBar(ctx, 10, yPos, 130, 'A', hydA, 3000, hydA > 2500 ? '#00ff00' : '#ff8800');
+    yPos += 20;
+    drawSystemBar(ctx, 10, yPos, 130, 'B', hydB, 3000, hydB > 2500 ? '#00ff00' : '#ff8800');
+    yPos += 30;
+    
+    // APU Section
+    ctx.fillStyle = '#167fac';
+    ctx.font = 'bold 10px Arial';
+    ctx.fillText('APU', 10, yPos);
+    yPos += 15;
+    
+    const apuRunning = apData.apuRunning !== undefined ? apData.apuRunning : false;
+    const apuN1 = apData.apuN1 !== undefined ? apData.apuN1 : 0;
+    const apuEgt = apData.apuEGT !== undefined ? apData.apuEGT : 0;
+    
+    ctx.font = '9px Arial';
+    ctx.fillStyle = '#888';
+    ctx.fillText('Status:', 15, yPos);
+    ctx.fillStyle = apuRunning ? '#00ff00' : '#888';
+    ctx.fillText(apuRunning ? 'RUNNING' : 'OFF', 55, yPos);
+    yPos += 15;
+    
+    if (apuRunning) {
+        ctx.fillStyle = '#888';
+        ctx.fillText('N1:', 15, yPos);
+        ctx.fillStyle = '#00ff00';
+        ctx.fillText(apuN1.toFixed(1) + '%', 55, yPos);
+        yPos += 15;
+        
+        ctx.fillStyle = '#888';
+        ctx.fillText('EGT:', 15, yPos);
+        ctx.fillStyle = apuEgt > 600 ? '#ff8800' : '#00ff00';
+        ctx.fillText(Math.round(apuEgt) + '°C', 55, yPos);
+    }
+    
+    // Fuel Distribution (right side)
+    yPos = 35;
+    ctx.fillStyle = '#167fac';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('FUEL', rightX - 65, yPos);
+    yPos += 15;
+    
+    const fuelLeft = apData.fuelLeftQuantity || 0;
+    const fuelRight = apData.fuelRightQuantity || 0;
+    const fuelCenter = apData.fuelCenterQuantity || 0;
+    
+    ctx.font = '9px Arial';
+    ctx.fillStyle = '#888';
+    ctx.fillText('LEFT:', rightX - 65, yPos);
+    ctx.fillStyle = '#00ff00';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(fuelLeft) + ' gal', width - 10, yPos);
+    yPos += 15;
+    
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.fillText('RIGHT:', rightX - 65, yPos);
+    ctx.fillStyle = '#00ff00';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(fuelRight) + ' gal', width - 10, yPos);
+    yPos += 15;
+    
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.fillText('CENTER:', rightX - 65, yPos);
+    ctx.fillStyle = '#00ff00';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(fuelCenter) + ' gal', width - 10, yPos);
+    yPos += 25;
+    
+    // Electrical
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#167fac';
+    ctx.font = 'bold 10px Arial';
+    ctx.fillText('ELECTRICAL', rightX - 65, yPos);
+    yPos += 15;
+    
+    const batteryVoltage = apData.batteryVoltage !== undefined ? apData.batteryVoltage : 24;
+    const gen1 = apData.generator1 !== undefined ? apData.generator1 : true;
+    const gen2 = apData.generator2 !== undefined ? apData.generator2 : true;
+    
+    ctx.font = '9px Arial';
+    ctx.fillStyle = '#888';
+    ctx.fillText('BAT:', rightX - 65, yPos);
+    ctx.fillStyle = batteryVoltage > 20 ? '#00ff00' : '#ff8800';
+    ctx.textAlign = 'right';
+    ctx.fillText(batteryVoltage.toFixed(1) + 'V', width - 10, yPos);
+    yPos += 15;
+    
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.fillText('GEN 1:', rightX - 65, yPos);
+    ctx.fillStyle = gen1 ? '#00ff00' : '#ff0000';
+    ctx.textAlign = 'right';
+    ctx.fillText(gen1 ? 'ON' : 'OFF', width - 10, yPos);
+    yPos += 15;
+    
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.fillText('GEN 2:', rightX - 65, yPos);
+    ctx.fillStyle = gen2 ? '#00ff00' : '#ff0000';
+    ctx.textAlign = 'right';
+    ctx.fillText(gen2 ? 'ON' : 'OFF', width - 10, yPos);
+}
+
+function drawFlightControlsPage(ctx, width, height, apData) {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('FLIGHT CONTROLS', width / 2, 15);
+    
+    const centerX = width / 2;
+    const centerY = height / 2;
+    
+    // Get control surface positions
+    const aileron = apData.aileronPosition || 0;
+    const elevator = apData.elevatorPosition || 0;
+    const rudder = apData.rudderPosition || 0;
+    const flaps = apData.flaps || 0;
+    const spoilers = apData.spoilers || 0;
+    
+    // Draw simplified aircraft top view
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 2;
+    
+    // Fuselage
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY - 60);
+    ctx.lineTo(centerX, centerY + 50);
+    ctx.stroke();
+    
+    // Wings
+    ctx.beginPath();
+    ctx.moveTo(centerX - 80, centerY);
+    ctx.lineTo(centerX + 80, centerY);
+    ctx.stroke();
+    
+    // Tail
+    ctx.beginPath();
+    ctx.moveTo(centerX - 25, centerY + 50);
+    ctx.lineTo(centerX + 25, centerY + 50);
+    ctx.stroke();
+    
+    // Vertical stabilizer
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY + 50);
+    ctx.lineTo(centerX, centerY + 70);
+    ctx.stroke();
+    
+    // Ailerons (animated)
+    const aileronDeflection = aileron * 0.15;
+    
+    // Left aileron
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 80, centerY);
+    ctx.lineTo(centerX - 50, centerY - aileronDeflection);
+    ctx.stroke();
+    
+    // Right aileron
+    ctx.beginPath();
+    ctx.moveTo(centerX + 80, centerY);
+    ctx.lineTo(centerX + 50, centerY + aileronDeflection);
+    ctx.stroke();
+    
+    // Elevator (animated)
+    const elevatorDeflection = elevator * 0.1;
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 25, centerY + 50 + elevatorDeflection);
+    ctx.lineTo(centerX + 25, centerY + 50 + elevatorDeflection);
+    ctx.stroke();
+    
+    // Rudder (animated)
+    const rudderDeflection = rudder * 0.15;
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY + 50);
+    ctx.lineTo(centerX + rudderDeflection, centerY + 70);
+    ctx.stroke();
+    
+    // Flaps indicators
+    if (flaps > 0) {
+        ctx.strokeStyle = '#167fac';
+        ctx.lineWidth = 2;
+        // Left flap
+        ctx.beginPath();
+        ctx.moveTo(centerX - 45, centerY + 5);
+        ctx.lineTo(centerX - 35, centerY + 5 + (flaps * 0.1));
+        ctx.stroke();
+        // Right flap
+        ctx.beginPath();
+        ctx.moveTo(centerX + 45, centerY + 5);
+        ctx.lineTo(centerX + 35, centerY + 5 + (flaps * 0.1));
+        ctx.stroke();
+    }
+    
+    // Spoilers indicators
+    if (spoilers > 10) {
+        ctx.strokeStyle = '#ff8800';
+        ctx.lineWidth = 2;
+        // Left spoiler
+        ctx.beginPath();
+        ctx.moveTo(centerX - 60, centerY);
+        ctx.lineTo(centerX - 60, centerY - (spoilers * 0.15));
+        ctx.stroke();
+        // Right spoiler
+        ctx.beginPath();
+        ctx.moveTo(centerX + 60, centerY);
+        ctx.lineTo(centerX + 60, centerY - (spoilers * 0.15));
+        ctx.stroke();
+    }
+    
+    // Control surface position readouts
+    ctx.font = '8px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    
+    let infoY = height - 60;
+    ctx.fillText('AILER:', 10, infoY);
+    ctx.fillStyle = '#00ff00';
+    ctx.fillText(aileron.toFixed(1), 45, infoY);
+    
+    ctx.fillStyle = '#888';
+    ctx.fillText('ELEV:', 85, infoY);
+    ctx.fillStyle = '#00ff00';
+    ctx.fillText(elevator.toFixed(1), 115, infoY);
+    
+    ctx.fillStyle = '#888';
+    ctx.fillText('RUD:', 155, infoY);
+    ctx.fillStyle = '#00ff00';
+    ctx.fillText(rudder.toFixed(1), 180, infoY);
+    
+    infoY += 12;
+    ctx.fillStyle = '#888';
+    ctx.fillText('FLAPS:', 10, infoY);
+    ctx.fillStyle = '#167fac';
+    ctx.fillText(flaps.toFixed(0) + '%', 45, infoY);
+    
+    ctx.fillStyle = '#888';
+    ctx.fillText('SPLRS:', 85, infoY);
+    ctx.fillStyle = spoilers > 10 ? '#ff8800' : '#888';
+    ctx.fillText(spoilers.toFixed(0) + '%', 120, infoY);
+}
+
+function drawSystemBar(ctx, x, y, width, label, value, max, color) {
+    ctx.font = '9px Arial';
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'left';
+    ctx.fillText(label + ':', x, y);
+    
+    const barX = x + 15;
+    const barWidth = width - 45;
+    const barHeight = 8;
+    
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(barX, y - 7, barWidth, barHeight);
+    
+    const percent = Math.min(100, (value / max) * 100);
+    ctx.fillStyle = color;
+    ctx.fillRect(barX, y - 7, (barWidth * percent) / 100, barHeight);
+    
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, y - 7, barWidth, barHeight);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 8px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(value), x + width, y);
 }
 
 function drawArcGauge(ctx, x, y, radius, value, max, color) {
@@ -2569,6 +2966,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
