@@ -1844,7 +1844,7 @@ function initInstruments() {
         
         function drawInstruments() {
             if (pfdCtx && currentFlightData) {
-                drawPFD();
+                ();
             }
             if (mfdCtx && currentFlightData) {
                 drawMFD();
@@ -1871,9 +1871,10 @@ function drawPFD() {
             const heading = currentFlightData.heading || 0;
             const vs = currentFlightData.verticalSpeed || 0;
             
-            // Get autopilot status
-            const apMaster = currentFlightData.apMaster || false;
-            const autoThrottle = currentFlightData.autoThrottle || false;
+            // Get autopilot status from autopilot state
+            const apData = window.lastAutopilotState || {};
+            const apMaster = apData.master || false;
+            const autoThrottle = apData.throttle || false;
             
             // Define the horizon display area (clipped to avoid tapes)
             const horizonLeft = 75;
@@ -2153,8 +2154,8 @@ function drawPFD() {
             ctx.closePath();
             ctx.fill();
             
-            // Heading tape (bottom)
-            const hdgTapeY = horizonBottom;
+            // Heading tape (bottom) - moved down to match side bar spacing
+            const hdgTapeY = height - 45;
             const hdgTapeHeight = 30;
             
             ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
@@ -2407,6 +2408,7 @@ function drawPFD() {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
