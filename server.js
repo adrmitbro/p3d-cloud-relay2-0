@@ -1862,17 +1862,17 @@ function initInstruments() {
 }
 
 function prevEICASPage() {
-    eicasPage = (eicasPage - 1 + 3) % 3;
+    eicasPage = (eicasPage - 1 + 7) % 7;  // Changed from 3 to 7
     updateEICASPageLabel();
 }
 
 function nextEICASPage() {
-    eicasPage = (eicasPage + 1) % 3;
+    eicasPage = (eicasPage + 1) % 7;  // Changed from 3 to 7
     updateEICASPageLabel();
 }
 
 function updateEICASPageLabel() {
-    const labels = ['EICAS DISPLAY', 'EICAS DISPLAY', 'EICAS DISPLAY'];
+    const labels = ['ENGINE', 'FUEL', 'HYDRAULICS', 'ELECTRICAL', 'BLEED/PRESS', 'DOORS/OXY', 'FLT CTRL'];
     document.getElementById('eicasPageLabel').textContent = labels[eicasPage];
 }
         
@@ -2475,12 +2475,14 @@ function drawEICAS() {
     const hasEngine4 = apData.engine4N1 !== undefined && apData.engine4N1 > 0;
     numEngines = hasEngine4 ? 4 : (hasEngine3 ? 3 : 2);
     
-    if (eicasPage === 0) {
-        drawEnginePage(ctx, width, height, apData);
-    } else if (eicasPage === 1) {
-        drawSystemsPage(ctx, width, height, apData);
-    } else {
-        drawFlightControlsPage(ctx, width, height, apData);
+    switch(eicasPage) {
+        case 0: drawEnginePage(ctx, width, height, apData); break;
+        case 1: drawFuelPage(ctx, width, height, apData); break;
+        case 2: drawHydraulicsPage(ctx, width, height, apData); break;
+        case 3: drawElectricalPage(ctx, width, height, apData); break;
+        case 4: drawBleedPressPage(ctx, width, height, apData); break;
+        case 5: drawDoorsOxyPage(ctx, width, height, apData); break;
+        case 6: drawFlightControlsPage(ctx, width, height, apData); break;
     }
 }
 
@@ -2503,6 +2505,20 @@ function drawEnginePage(ctx, width, height, apData) {
     const ff_4 = apData.engine4FuelFlow || 0;
     const fuelTotal = apData.fuelTotalQuantity || 0;
     
+    // Oil data
+    const oil1Press = apData.engine1OilPressure || 0;
+    const oil2Press = apData.engine2OilPressure || 0;
+    const oil3Press = apData.engine3OilPressure || 0;
+    const oil4Press = apData.engine4OilPressure || 0;
+    const oil1Temp = apData.engine1OilTemp || 0;
+    const oil2Temp = apData.engine2OilTemp || 0;
+    const oil3Temp = apData.engine3OilTemp || 0;
+    const oil4Temp = apData.engine4OilTemp || 0;
+    const vib1 = apData.engine1Vibration || 0;
+    const vib2 = apData.engine2Vibration || 0;
+    const vib3 = apData.engine3Vibration || 0;
+    const vib4 = apData.engine4Vibration || 0;
+    
     // Draw title
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px Arial';
@@ -2517,20 +2533,23 @@ function drawEnginePage(ctx, width, height, apData) {
     }
     
     const startY = 25;
-    const rowHeight = 20;
+    const rowHeight = 14;
+    let yPos = startY;
     
     // Engine labels
     ctx.font = 'bold 10px Arial';
     ctx.fillStyle = '#888';
     for (let i = 0; i < numEngines; i++) {
-        ctx.fillText((i + 1).toString(), engineX[i], startY);
+        ctx.fillText((i + 1).toString(), engineX[i], yPos);
     }
+    
+    yPos += rowHeight;
     
     // N1 Label
     ctx.textAlign = 'left';
     ctx.fillStyle = '#888';
     ctx.font = '9px Arial';
-    ctx.fillText('N1%', 5, startY + rowHeight + 10);
+    ctx.fillText('N1%', 5, yPos);
     
     // N1 Values
     ctx.textAlign = 'center';
@@ -2538,63 +2557,116 @@ function drawEnginePage(ctx, width, height, apData) {
     const n1Values = [n1_1, n1_2, n1_3, n1_4];
     for (let i = 0; i < numEngines; i++) {
         ctx.fillStyle = n1Values[i] > 95 ? '#ff0000' : '#00ff00';
-        ctx.fillText(n1Values[i].toFixed(1), engineX[i], startY + rowHeight + 5);
+        ctx.fillText(n1Values[i].toFixed(1), engineX[i], yPos);
     }
     
-    // N1 Arc Gauges - smaller
-    const arcY = startY + rowHeight + 30;
-    const arcRadius = numEngines === 4 ? 18 : 22;
+    yPos += rowHeight + 8;
+    
+    // N1 Arc Gauges
+    const arcRadius = numEngines === 4 ? 16 : 20;
     for (let i = 0; i < numEngines; i++) {
-        drawArcGauge(ctx, engineX[i], arcY, arcRadius, n1Values[i], 100, n1Values[i] > 95 ? '#ff0000' : '#00ff00');
+        drawArcGauge(ctx, engineX[i], yPos + arcRadius, arcRadius, n1Values[i], 100, n1Values[i] > 95 ? '#ff0000' : '#00ff00');
     }
     
-    // N2 Label
+    yPos += arcRadius * 2 + 8;
+    
+    // N2
     ctx.textAlign = 'left';
     ctx.fillStyle = '#888';
     ctx.font = '9px Arial';
-    ctx.fillText('N2%', 5, arcY + arcRadius + 22);
+    ctx.fillText('N2%', 5, yPos);
     
-    // N2 Values
     ctx.textAlign = 'center';
-    ctx.font = 'bold 10px Arial';
+    ctx.font = 'bold 9px Arial';
     const n2Values = [n2_1, n2_2, n2_3, n2_4];
     for (let i = 0; i < numEngines; i++) {
         ctx.fillStyle = '#fff';
-        ctx.fillText(n2Values[i].toFixed(1), engineX[i], arcY + arcRadius + 22);
+        ctx.fillText(n2Values[i].toFixed(1), engineX[i], yPos);
     }
     
-    // EGT Label
+    yPos += rowHeight;
+    
+    // EGT
     ctx.textAlign = 'left';
     ctx.fillStyle = '#888';
     ctx.font = '9px Arial';
-    ctx.fillText('EGT°C', 5, arcY + arcRadius + 38);
+    ctx.fillText('EGT°C', 5, yPos);
     
-    // EGT Values
     ctx.textAlign = 'center';
-    ctx.font = 'bold 10px Arial';
+    ctx.font = 'bold 9px Arial';
     const egtValues = [egt_1, egt_2, egt_3, egt_4];
     for (let i = 0; i < numEngines; i++) {
         ctx.fillStyle = egtValues[i] > 800 ? '#ff8800' : '#fff';
-        ctx.fillText(Math.round(egtValues[i]), engineX[i], arcY + arcRadius + 38);
+        ctx.fillText(Math.round(egtValues[i]), engineX[i], yPos);
     }
     
-    // Fuel Flow Label
+    yPos += rowHeight;
+    
+    // Fuel Flow
     ctx.textAlign = 'left';
     ctx.fillStyle = '#888';
     ctx.font = '9px Arial';
-    ctx.fillText('FF kg/h', 5, arcY + arcRadius + 54);
+    ctx.fillText('FF kg/h', 5, yPos);
     
-    // Fuel Flow Values
     ctx.textAlign = 'center';
-    ctx.font = 'bold 10px Arial';
+    ctx.font = 'bold 9px Arial';
     const ffValues = [ff_1, ff_2, ff_3, ff_4];
     for (let i = 0; i < numEngines; i++) {
         ctx.fillStyle = '#00ff00';
-        ctx.fillText(Math.round(ffValues[i]), engineX[i], arcY + arcRadius + 54);
+        ctx.fillText(Math.round(ffValues[i]), engineX[i], yPos);
+    }
+    
+    yPos += rowHeight;
+    
+    // Oil Pressure
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.fillText('OIL PSI', 5, yPos);
+    
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 9px Arial';
+    const oilPressValues = [oil1Press, oil2Press, oil3Press, oil4Press];
+    for (let i = 0; i < numEngines; i++) {
+        const normal = oilPressValues[i] >= 25 && oilPressValues[i] <= 100;
+        ctx.fillStyle = normal ? '#00ff00' : '#ff8800';
+        ctx.fillText(Math.round(oilPressValues[i]), engineX[i], yPos);
+    }
+    
+    yPos += rowHeight;
+    
+    // Oil Temperature
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.fillText('OIL°C', 5, yPos);
+    
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 9px Arial';
+    const oilTempValues = [oil1Temp, oil2Temp, oil3Temp, oil4Temp];
+    for (let i = 0; i < numEngines; i++) {
+        ctx.fillStyle = oilTempValues[i] > 110 ? '#ff8800' : '#fff';
+        ctx.fillText(Math.round(oilTempValues[i]), engineX[i], yPos);
+    }
+    
+    yPos += rowHeight;
+    
+    // Vibration
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.fillText('VIB', 5, yPos);
+    
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 9px Arial';
+    const vibValues = [vib1, vib2, vib3, vib4];
+    for (let i = 0; i < numEngines; i++) {
+        ctx.fillStyle = vibValues[i] > 5 ? '#ff8800' : '#00ff00';
+        ctx.fillText(vibValues[i].toFixed(1), engineX[i], yPos);
     }
     
     // Fuel quantity bar at bottom
-    const barY = height - 30;
+    const barY = height - 25;
     ctx.fillStyle = '#888';
     ctx.font = '9px Arial';
     ctx.textAlign = 'left';
@@ -2602,26 +2674,26 @@ function drawEnginePage(ctx, width, height, apData) {
     
     const fuelMaxGallons = 10000;
     const fuelPercent = Math.min(100, (fuelTotal / fuelMaxGallons) * 100);
-    const fuelKg = Math.round(fuelTotal * 0.8);
+    const fuelKg = Math.round(fuelTotal * 3.785 * 0.8); // Convert gallons to kg
     
     const barWidth = width - 60;
     const barX = 10;
     
     ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(barX, barY, barWidth, 10);
+    ctx.fillRect(barX, barY, barWidth, 8);
     
     ctx.fillStyle = fuelPercent < 20 ? '#ff8800' : '#00ff00';
-    ctx.fillRect(barX, barY, (barWidth * fuelPercent) / 100, 10);
+    ctx.fillRect(barX, barY, (barWidth * fuelPercent) / 100, 8);
     
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 1;
-    ctx.strokeRect(barX, barY, barWidth, 10);
+    ctx.strokeRect(barX, barY, barWidth, 8);
     
     // Fuel quantity text
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 9px Arial';
     ctx.textAlign = 'right';
-    ctx.fillText(fuelKg + ' kg', width - 10, barY + 8);
+    ctx.fillText(fuelKg + ' kg', width - 10, barY + 6);
 }
 
 function drawSystemsPage(ctx, width, height, apData) {
@@ -2967,6 +3039,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
