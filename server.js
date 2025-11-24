@@ -2505,7 +2505,7 @@ function drawEICASNavigation(ctx, width, height) {
     ctx.fillStyle = '#888';
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'right';
-    ctx.fillText(`${eicasPage + 1}/${eicasMaxPages}`, width - 10, 15);
+    ctx.fillText(`{eicasPage + 1}/${eicasMaxPages}`, width - 10, 15);
     
     // Left arrow
     const leftArrowX = 10;
@@ -3067,6 +3067,7 @@ function drawEICASFlightControlsPage(ctx, width, height, apData) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
