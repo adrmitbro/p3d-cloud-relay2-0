@@ -2632,7 +2632,7 @@ function drawSystemsPage(ctx, width, height, apData) {
     
     const leftX = 75;
     const rightX = 225;
-    let yPos = 30;
+    let yPos = 35;
     
     // Hydraulics Section
     ctx.fillStyle = '#167fac';
@@ -2967,6 +2967,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
