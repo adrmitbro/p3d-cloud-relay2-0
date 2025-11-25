@@ -2711,229 +2711,179 @@ function drawFuelPage(ctx, width, height, apData) {
     const rightPump = apData.fuelRightPump || false;
     const centerPump = apData.fuelCenterPump || false;
     
-    // Aircraft outline (top-down view)
     const centerX = width / 2;
-    const centerY = height / 2 - 10;
+    const topY = 40;
     
-    // Draw fuselage
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY - 60);
-    ctx.lineTo(centerX - 8, centerY - 50);
-    ctx.lineTo(centerX - 8, centerY + 50);
-    ctx.lineTo(centerX, centerY + 60);
-    ctx.lineTo(centerX + 8, centerY + 50);
-    ctx.lineTo(centerX + 8, centerY - 50);
-    ctx.closePath();
-    ctx.stroke();
-    
-    // Draw wings
-    ctx.beginPath();
-    ctx.moveTo(centerX - 8, centerY);
-    ctx.lineTo(centerX - 90, centerY - 15);
-    ctx.lineTo(centerX - 90, centerY + 15);
-    ctx.lineTo(centerX - 8, centerY);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(centerX + 8, centerY);
-    ctx.lineTo(centerX + 90, centerY - 15);
-    ctx.lineTo(centerX + 90, centerY + 15);
-    ctx.lineTo(centerX + 8, centerY);
-    ctx.stroke();
-    
-    // LEFT TANK
-    const leftTankX = centerX - 50;
-    const leftTankY = centerY;
-    
-    // Tank outline
-    ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(leftTankX - 25, leftTankY - 20, 30, 40);
-    
-    // Fuel level indicator
-    const leftPercent = (fuelLeft / 2000) * 100; // Assume 2000 gal capacity per tank
-    const leftFillHeight = (leftPercent / 100) * 40;
-    ctx.fillStyle = '#00ff00';
-    ctx.globalAlpha = 0.3;
-    ctx.fillRect(leftTankX - 25, leftTankY + 20 - leftFillHeight, 30, leftFillHeight);
-    ctx.globalAlpha = 1.0;
-    
-    // LEFT quantity text
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(Math.round(fuelLeft), leftTankX - 10, leftTankY - 25);
-    ctx.font = '8px Arial';
-    ctx.fillText('GAL', leftTankX - 10, leftTankY - 15);
-    
-    // LEFT pump indicator
-    if (leftPump) {
-        ctx.fillStyle = '#00ff00';
-        ctx.beginPath();
-        ctx.arc(leftTankX - 10, leftTankY + 30, 4, 0, Math.PI * 2);
-        ctx.fill();
-    } else {
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(leftTankX - 10, leftTankY + 30, 4, 0, Math.PI * 2);
-        ctx.stroke();
-    }
-    
-    // RIGHT TANK
-    const rightTankX = centerX + 50;
-    const rightTankY = centerY;
-    
-    // Tank outline
-    ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(rightTankX - 5, rightTankY - 20, 30, 40);
-    
-    // Fuel level indicator
-    const rightPercent = (fuelRight / 2000) * 100;
-    const rightFillHeight = (rightPercent / 100) * 40;
-    ctx.fillStyle = '#00ff00';
-    ctx.globalAlpha = 0.3;
-    ctx.fillRect(rightTankX - 5, rightTankY + 20 - rightFillHeight, 30, rightFillHeight);
-    ctx.globalAlpha = 1.0;
-    
-    // RIGHT quantity text
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(Math.round(fuelRight), rightTankX + 10, rightTankY - 25);
-    ctx.font = '8px Arial';
-    ctx.fillText('GAL', rightTankX + 10, rightTankY - 15);
-    
-    // RIGHT pump indicator
-    if (rightPump) {
-        ctx.fillStyle = '#00ff00';
-        ctx.beginPath();
-        ctx.arc(rightTankX + 10, rightTankY + 30, 4, 0, Math.PI * 2);
-        ctx.fill();
-    } else {
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(rightTankX + 10, rightTankY + 30, 4, 0, Math.PI * 2);
-        ctx.stroke();
-    }
-    
-    // CENTER TANK
-    if (fuelCenter > 0 || centerPump) {
-        const centerTankX = centerX;
-        const centerTankY = centerY + 10;
-        
-        // Tank outline
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(centerTankX - 15, centerTankY - 10, 30, 20);
-        
-        // Fuel level indicator
-        const centerPercent = (fuelCenter / 3000) * 100; // Assume 3000 gal capacity
-        const centerFillHeight = (centerPercent / 100) * 20;
-        ctx.fillStyle = '#00ff00';
-        ctx.globalAlpha = 0.3;
-        ctx.fillRect(centerTankX - 15, centerTankY + 10 - centerFillHeight, 30, centerFillHeight);
-        ctx.globalAlpha = 1.0;
-        
-        // CENTER quantity text
-        ctx.fillStyle = '#00ff00';
-        ctx.font = 'bold 9px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(Math.round(fuelCenter), centerTankX, centerTankY + 20);
-        
-        // CENTER pump indicator
-        if (centerPump) {
-            ctx.fillStyle = '#00ff00';
-            ctx.beginPath();
-            ctx.arc(centerTankX, centerTankY + 25, 3, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        
-        // Label
-        ctx.fillStyle = '#888';
-        ctx.font = '8px Arial';
-        ctx.fillText('CTR', centerTankX, centerTankY - 12);
-    }
-    
-    // Labels
-    ctx.fillStyle = '#888';
-    ctx.font = '8px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('LEFT', leftTankX - 10, leftTankY + 45);
-    ctx.fillText('RIGHT', rightTankX + 10, rightTankY + 45);
-    
-    // Flow lines from tanks to engines
-    ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 2]);
-    
-    // Left tank to left engine
-    ctx.beginPath();
-    ctx.moveTo(leftTankX - 10, leftTankY + 20);
-    ctx.lineTo(leftTankX - 10, leftTankY + 35);
-    ctx.stroke();
-    
-    // Right tank to right engine
-    ctx.beginPath();
-    ctx.moveTo(rightTankX + 10, rightTankY + 20);
-    ctx.lineTo(rightTankX + 10, rightTankY + 35);
-    ctx.stroke();
-    
-    ctx.setLineDash([]);
-    
-    // TOTAL FUEL display at top
+    // TOTAL at top center
     ctx.fillStyle = '#167fac';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('TOTAL', centerX, 35);
-    
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 14px Arial';
-    ctx.fillText(Math.round(fuelTotal), centerX, 50);
-    
     ctx.font = '9px Arial';
-    ctx.fillStyle = '#888';
-    ctx.fillText('GALLONS', centerX, 60);
+    ctx.textAlign = 'center';
+    ctx.fillText('FUEL LBS', centerX, topY);
     
-    // Convert to KG
-    const fuelKg = Math.round(fuelTotal * 3.785 * 0.8);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(centerX - 30, topY + 5, 60, 20);
+    
     ctx.fillStyle = '#00ff00';
     ctx.font = 'bold 12px Arial';
-    ctx.fillText(fuelKg + ' KG', centerX, 73);
+    const fuelLbs = Math.round(fuelTotal * 6.7); // Convert gallons to lbs
+    ctx.fillText(fuelLbs, centerX, topY + 20);
     
-    // Bottom info
-    const bottomY = height - 30;
-    
-    // Pump legend
+    // F. USED labels at top corners
     ctx.fillStyle = '#888';
     ctx.font = '8px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText('PUMPS:', 10, bottomY);
+    ctx.fillText('F. USED', 15, topY);
+    ctx.textAlign = 'right';
+    ctx.fillText('F. USED', width - 15, topY);
     
-    // Left pump status
-    ctx.fillStyle = leftPump ? '#00ff00' : '#888';
-    ctx.fillText('L', 50, bottomY);
+    // Calculate fuel used (assuming 10000 gal capacity per side)
+    const leftUsed = 10000 - fuelLeft;
+    const rightUsed = 10000 - fuelRight;
     
-    // Center pump status
-    ctx.fillStyle = centerPump ? '#00ff00' : '#888';
-    ctx.fillText('C', 65, bottomY);
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(Math.round(leftUsed), 15, topY + 15);
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(rightUsed), width - 15, topY + 15);
     
-    // Right pump status
-    ctx.fillStyle = rightPump ? '#00ff00' : '#888';
-    ctx.fillText('R', 80, bottomY);
+    // Tank circles - LEFT
+    const leftX = 50;
+    const topTankY = topY + 50;
     
-    // Fuel used display
-    const fuelUsed = 20000 - fuelTotal; // Assume 20000 gal capacity
-    if (fuelUsed > 0) {
-        ctx.fillStyle = '#888';
-        ctx.font = '8px Arial';
-        ctx.textAlign = 'right';
-        ctx.fillText('USED: ' + Math.round(fuelUsed) + ' GAL', width - 10, bottomY);
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(leftX, topTankY, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Left tank vertical line
+    ctx.beginPath();
+    ctx.moveTo(leftX, topTankY + 12);
+    ctx.lineTo(leftX, height - 80);
+    ctx.stroke();
+    
+    // LEFT label
+    ctx.fillStyle = '#888';
+    ctx.font = '8px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('LEFT', leftX, height - 65);
+    
+    // Tank circles - RIGHT
+    const rightX = width - 50;
+    
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(rightX, topTankY, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Right tank vertical line
+    ctx.beginPath();
+    ctx.moveTo(rightX, topTankY + 12);
+    ctx.lineTo(rightX, height - 80);
+    ctx.stroke();
+    
+    // RIGHT label
+    ctx.fillStyle = '#888';
+    ctx.font = '8px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('RIGHT', rightX, height - 65);
+    
+    // CENTER tank circle
+    const centerTankY = topY + 75;
+    
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerTankY, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Center tank vertical line
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerTankY + 12);
+    ctx.lineTo(centerX, height - 80);
+    ctx.stroke();
+    
+    // CTR label
+    ctx.fillStyle = '#888';
+    ctx.font = '8px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('CTR', centerX, height - 65);
+    
+    // Horizontal line connecting all tanks at bottom
+    const bottomLineY = height - 80;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(leftX, bottomLineY);
+    ctx.lineTo(rightX, bottomLineY);
+    ctx.stroke();
+    
+    // Wing outline bars at bottom
+    const wingBarY = height - 55;
+    const wingBarHeight = 20;
+    
+    // Left wing bar
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(20, wingBarY, 60, wingBarHeight);
+    
+    // Left wing quantity
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round(fuelLeft), 50, wingBarY + 14);
+    
+    // Center wing bar
+    ctx.strokeRect(centerX - 30, wingBarY, 60, wingBarHeight);
+    
+    // Center wing quantity
+    ctx.fillText(Math.round(fuelCenter), centerX, wingBarY + 14);
+    
+    // Right wing bar
+    ctx.strokeRect(width - 80, wingBarY, 60, wingBarHeight);
+    
+    // Right wing quantity
+    ctx.fillText(Math.round(fuelRight), width - 50, wingBarY + 14);
+    
+    // Pump indicators (orange squares)
+    // Left pump
+    if (leftPump) {
+        ctx.fillStyle = '#ff8800';
+        ctx.fillRect(leftX - 6, bottomLineY + 10, 12, 8);
     }
+    ctx.strokeStyle = '#ff8800';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(leftX - 6, bottomLineY + 10, 12, 8);
+    
+    // Center pump
+    if (centerPump) {
+        ctx.fillStyle = '#ff8800';
+        ctx.fillRect(centerX - 6, bottomLineY + 10, 12, 8);
+    }
+    ctx.strokeStyle = '#ff8800';
+    ctx.strokeRect(centerX - 6, bottomLineY + 10, 12, 8);
+    
+    // Right pump
+    if (rightPump) {
+        ctx.fillStyle = '#ff8800';
+        ctx.fillRect(rightX - 6, bottomLineY + 10, 12, 8);
+    }
+    ctx.strokeStyle = '#ff8800';
+    ctx.strokeRect(rightX - 6, bottomLineY + 10, 12, 8);
+    
+    // Temperature indicators at very bottom (if available)
+    const tempY = height - 15;
+    ctx.fillStyle = '#888';
+    ctx.font = '7px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('0 °C', 30, tempY);
+    ctx.fillText('0', 50, tempY);
+    ctx.fillText('0 °C', width - 30, tempY);
+    ctx.fillText('0', width - 50, tempY);
+}
 }
 
 function drawSystemsPage(ctx, width, height, apData) {
