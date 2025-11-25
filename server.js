@@ -2459,6 +2459,75 @@ function drawPFD() {
             ctx.fillText('HDG ' + Math.round(heading) + '°', centerX, height - 15);
         }
 
+
+function drawECAMFooter(ctx, width, height, apData) {
+    const footerY = height - 25;
+    
+    // Separator line
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, footerY - 5);
+    ctx.lineTo(width, footerY - 5);
+    ctx.stroke();
+    
+    // TAT
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('TAT', 10, footerY + 5);
+    
+    const tat = apData.totalAirTemperature || 0;
+    const tatSign = tat >= 0 ? '+' : '';
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 10px Arial';
+    ctx.fillText(tatSign + Math.round(tat), 38, footerY + 5);
+    
+    ctx.fillStyle = '#67A4C1';
+    ctx.font = '9px Arial';
+    ctx.fillText('°C', 63, footerY + 5);
+    
+    // SAT
+    ctx.fillStyle = '#888';
+    ctx.fillText('SAT', 10, footerY + 17);
+    
+    const sat = apData.ambientTemperature || 0;
+    const satSign = sat >= 0 ? '+' : '';
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 10px Arial';
+    ctx.fillText(satSign + Math.round(sat), 38, footerY + 17);
+    
+    ctx.fillStyle = '#67A4C1';
+    ctx.font = '9px Arial';
+    ctx.fillText('°C', 63, footerY + 17);
+    
+    // UTC Time
+    const now = new Date();
+    const hours = now.getUTCHours().toString().padStart(2, '0');
+    const minutes = now.getUTCMinutes().toString().padStart(2, '0');
+    
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(hours + ' H ' + minutes, width / 2, footerY + 11);
+    
+    // GW (Gross Weight)
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText('GW', width - 55, footerY + 11);
+    
+    const grossWeight = Math.round(apData.totalWeight || 0);
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 11px Arial';
+    ctx.fillText(grossWeight, width - 10, footerY + 11);
+    
+    ctx.fillStyle = '#888';
+    ctx.font = '8px Arial';
+    ctx.fillText('KG', width - 10, footerY + 20);
+}
+
+
 function drawEICAS() {
     const ctx = eicasCtx;
     const width = eicasCanvas.width;
@@ -2888,256 +2957,193 @@ function drawFuelPage(ctx, width, height, apData) {
 }
 
 function drawHydraulicsPage(ctx, width, height, apData) {
-    // Draw title
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Title
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('HYDRAULICS', width / 2, 15);
+    ctx.fillText('HYD', width / 2, 15);
     
-    const hydA = apData.hydraulicA !== undefined ? apData.hydraulicA : 3000;
-    const hydB = apData.hydraulicB !== undefined ? apData.hydraulicB : 3000;
-    const hydPressure1 = apData.hydraulicPressure1 || 3000;
-    const hydPressure2 = apData.hydraulicPressure2 || 3000;
-    const hydRes1 = apData.hydraulicReservoir1 || 100;
-    const hydRes2 = apData.hydraulicReservoir2 || 100;
+    const hydPress1 = apData.hydraulicPressure1 / 144 || 3000; // psf to psi
+    const hydPress2 = apData.hydraulicPressure2 / 144 || 3000;
+    const hydBlue = 3000; // Static for now
     
-    const centerX = width / 2;
-    const topY = 50;
+    const topY = 35;
+    const systemSpacing = 100;
     
-    // System A (LEFT/GREEN)
-    const leftX = 60;
+    // GREEN system (left)
+    const greenX = systemSpacing;
     
-    ctx.fillStyle = '#167fac';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('SYSTEM A', leftX, topY);
-    
-    // Reservoir
-    ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(leftX - 15, topY + 10, 30, 25);
-    
-    ctx.fillStyle = '#888';
-    ctx.font = '7px Arial';
-    ctx.fillText('RES', leftX, topY + 20);
-    
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 9px Arial';
-    ctx.fillText(Math.round(hydRes1) + '%', leftX, topY + 30);
-    
-    // Vertical line down
-    ctx.strokeStyle = '#00ff00';
-    ctx.beginPath();
-    ctx.moveTo(leftX, topY + 35);
-    ctx.lineTo(leftX, topY + 60);
-    ctx.stroke();
-    
-    // Pump (triangle)
+    // Triangle and label
     ctx.fillStyle = '#00ff00';
     ctx.beginPath();
-    ctx.moveTo(leftX, topY + 60);
-    ctx.lineTo(leftX - 8, topY + 72);
-    ctx.lineTo(leftX + 8, topY + 72);
+    ctx.moveTo(greenX, topY);
+    ctx.lineTo(greenX - 5, topY + 8);
+    ctx.lineTo(greenX + 5, topY + 8);
     ctx.closePath();
     ctx.fill();
     
-    ctx.fillStyle = '#000';
-    ctx.font = 'bold 8px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('P', leftX, topY + 69);
-    
-    // Pressure line down
-    ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(leftX, topY + 72);
-    ctx.lineTo(leftX, topY + 110);
-    ctx.stroke();
-    
-    // Pressure value box
-    ctx.fillStyle = '#000';
-    ctx.fillRect(leftX - 20, topY + 95, 40, 20);
-    
-    ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(leftX - 20, topY + 95, 40, 20);
-    
-    const pressure1 = Math.round(hydPressure1);
-    ctx.fillStyle = pressure1 > 2500 ? '#00ff00' : '#ff8800';
+    ctx.fillStyle = '#fff';
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(pressure1, leftX, topY + 109);
+    ctx.fillText('GREEN', greenX, topY + 22);
+    
+    // PSI value
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText(Math.round(hydPress1), greenX, topY + 38);
     
     ctx.fillStyle = '#888';
-    ctx.font = '7px Arial';
-    ctx.fillText('PSI', leftX, topY + 92);
+    ctx.font = '9px Arial';
+    ctx.fillText('PSI', greenX + 30, topY + 38);
     
-    // Horizontal distribution lines
-    const distY = topY + 110;
+    // Reservoir box
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 2;
+    ctx.strokeRect(greenX - 15, topY + 50, 30, 20);
+    
+    // Pump circle
     ctx.beginPath();
-    ctx.moveTo(leftX, distY);
-    ctx.lineTo(leftX, distY + 30);
-    ctx.lineTo(20, distY + 30);
-    ctx.lineTo(20, distY + 60);
+    ctx.arc(greenX, topY + 95, 12, 0, Math.PI * 2);
     ctx.stroke();
     
+    // Vertical line
     ctx.beginPath();
-    ctx.moveTo(leftX, distY + 30);
-    ctx.lineTo(100, distY + 30);
-    ctx.lineTo(100, distY + 60);
+    ctx.moveTo(greenX, topY + 70);
+    ctx.lineTo(greenX, height - 80);
     ctx.stroke();
     
-// Actuator symbols (rectangles with circles) - MOVED LABELS DOWN
-    // Left actuator
-    ctx.fillStyle = '#00ff00';
-    ctx.fillRect(15, distY + 60, 10, 15);
-    ctx.beginPath();
-    ctx.arc(20, distY + 68, 4, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.fillStyle = '#888';
-    ctx.font = '6px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('ELV', 20, distY + 82);
-    
-    // Right actuator
-    ctx.fillStyle = '#00ff00';
-    ctx.fillRect(95, distY + 60, 10, 15);
-    ctx.beginPath();
-    ctx.arc(100, distY + 68, 4, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.fillStyle = '#888';
-    ctx.font = '6px Arial';
-    ctx.fillText('AIL', 100, distY + 82);
-    
-    // System B (RIGHT/YELLOW)
-    const rightX = width - 60;
-    
-    ctx.fillStyle = '#167fac';
+    // Engine label
+    ctx.fillStyle = '#fff';
     ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('SYSTEM B', rightX, topY);
+    ctx.fillText('1', greenX - 30, topY + 140);
     
-    // Reservoir
-    ctx.strokeStyle = '#ffcc00';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(rightX - 15, topY + 10, 30, 25);
+    // BLUE system (center)
+    const blueX = width / 2;
     
-    ctx.fillStyle = '#888';
-    ctx.font = '7px Arial';
-    ctx.fillText('RES', rightX, topY + 20);
-    
-    ctx.fillStyle = '#ffcc00';
-    ctx.font = 'bold 9px Arial';
-    ctx.fillText(Math.round(hydRes2) + '%', rightX, topY + 30);
-    
-    // Vertical line down
-    ctx.strokeStyle = '#ffcc00';
+    ctx.fillStyle = '#00ff00';
     ctx.beginPath();
-    ctx.moveTo(rightX, topY + 35);
-    ctx.lineTo(rightX, topY + 60);
-    ctx.stroke();
-    
-    // Pump (triangle)
-    ctx.fillStyle = '#ffcc00';
-    ctx.beginPath();
-    ctx.moveTo(rightX, topY + 60);
-    ctx.lineTo(rightX - 8, topY + 72);
-    ctx.lineTo(rightX + 8, topY + 72);
+    ctx.moveTo(blueX, topY);
+    ctx.lineTo(blueX - 5, topY + 8);
+    ctx.lineTo(blueX + 5, topY + 8);
     ctx.closePath();
     ctx.fill();
     
-    ctx.fillStyle = '#000';
-    ctx.font = 'bold 8px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('P', rightX, topY + 69);
-    
-    // Pressure line down
-    ctx.strokeStyle = '#ffcc00';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(rightX, topY + 72);
-    ctx.lineTo(rightX, topY + 110);
-    ctx.stroke();
-    
-    // Pressure value box
-    ctx.fillStyle = '#000';
-    ctx.fillRect(rightX - 20, topY + 95, 40, 20);
-    
-    ctx.strokeStyle = '#ffcc00';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(rightX - 20, topY + 95, 40, 20);
-    
-    const pressure2 = Math.round(hydPressure2);
-    ctx.fillStyle = pressure2 > 2500 ? '#ffcc00' : '#ff8800';
+    ctx.fillStyle = '#fff';
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(pressure2, rightX, topY + 109);
+    ctx.fillText('BLUE', blueX, topY + 22);
+    
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText(Math.round(hydBlue), blueX, topY + 38);
     
     ctx.fillStyle = '#888';
-    ctx.font = '7px Arial';
-    ctx.fillText('PSI', rightX, topY + 92);
+    ctx.font = '9px Arial';
+    ctx.fillText('PSI', blueX + 30, topY + 38);
     
-    // Horizontal distribution lines
-    ctx.strokeStyle = '#ffcc00';
+    // PTU connection
+    ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 2;
+    
+    // Horizontal line with valves
+    const ptuY = topY + 110;
     ctx.beginPath();
-    ctx.moveTo(rightX, distY);
-    ctx.lineTo(rightX, distY + 30);
-    ctx.lineTo(width - 20, distY + 30);
-    ctx.lineTo(width - 20, distY + 60);
+    ctx.moveTo(greenX + 20, ptuY);
+    ctx.lineTo(width - systemSpacing - 20, ptuY);
     ctx.stroke();
     
-    ctx.beginPath();
-    ctx.moveTo(rightX, distY + 30);
-    ctx.lineTo(width - 100, distY + 30);
-    ctx.lineTo(width - 100, distY + 60);
-    ctx.stroke();
-    
-    // Actuator symbols
-// Right actuator
-    ctx.fillStyle = '#ffcc00';
-    ctx.fillRect(width - 25, distY + 60, 10, 15);
-    ctx.beginPath();
-    ctx.arc(width - 20, distY + 68, 4, 0, Math.PI * 2);
-    ctx.fill();
-    
+    // PTU text and arrows
     ctx.fillStyle = '#888';
-    ctx.font = '6px Arial';
+    ctx.font = '9px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('RUD', width - 20, distY + 82);
+    ctx.fillText('◀ PTU ▶', blueX, ptuY + 15);
     
-    // Left actuator
-    ctx.fillStyle = '#ffcc00';
-    ctx.fillRect(width - 105, distY + 60, 10, 15);
+    // RAT (Ram Air Turbine)
+    ctx.fillText('RAT ▶', blueX - 30, ptuY + 30);
+    
+    // YELLOW system (right)
+    const yellowX = width - systemSpacing;
+    
+    ctx.fillStyle = '#00ff00';
     ctx.beginPath();
-    ctx.arc(width - 100, distY + 68, 4, 0, Math.PI * 2);
+    ctx.moveTo(yellowX, topY);
+    ctx.lineTo(yellowX - 5, topY + 8);
+    ctx.lineTo(yellowX + 5, topY + 8);
+    ctx.closePath();
     ctx.fill();
     
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('YELLOW', yellowX, topY + 22);
+    
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText(Math.round(hydPress2), yellowX, topY + 38);
+    
     ctx.fillStyle = '#888';
-    ctx.font = '6px Arial';
-    ctx.fillText('FLP', width - 100, distY + 82);
+    ctx.font = '9px Arial';
+    ctx.fillText('PSI', yellowX + 30, topY + 38);
     
-    // Status text at bottom
-    const statusY = height - 30;
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(yellowX - 15, topY + 50, 30, 20);
     
+    ctx.beginPath();
+    ctx.arc(yellowX, topY + 95, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.moveTo(yellowX, topY + 70);
+    ctx.lineTo(yellowX, height - 80);
+    ctx.stroke();
+    
+    // ELEC labels
     ctx.fillStyle = '#888';
     ctx.font = '8px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText('SYS A:', 10, statusY);
-    
-    ctx.fillStyle = hydA > 2500 ? '#00ff00' : '#ff8800';
-    ctx.fillText(hydA > 2500 ? 'NORM' : 'LOW', 48, statusY)
-    
-    ctx.fillStyle = '#888';
     ctx.textAlign = 'right';
-    ctx.fillText('SYS B:', width - 48, statusY);
+    ctx.fillText('◀ ELEC', yellowX + 50, ptuY + 15);
     
-    ctx.fillStyle = hydB > 2500 ? '#ffcc00' : '#ff8800';
-    ctx.fillText(hydB > 2500 ? 'NORM' : 'LOW', width - 10, statusY);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('2', yellowX + 30, topY + 140);
+    
+    // ELEC box (center)
+    const elecY = topY + 135;
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(blueX - 20, elecY, 40, 18);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('ELEC', blueX, elecY + 12);
+    
+    // Actuator symbols at bottom
+    const actY = height - 60;
+    
+    // Draw actuator rectangles with circles
+    [greenX, yellowX].forEach((x, i) => {
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        
+        // Vertical bar
+        ctx.fillStyle = 'rgba(255, 200, 0, 0.3)';
+        ctx.fillRect(x - 6, actY, 12, 25);
+        ctx.strokeRect(x - 6, actY, 12, 25);
+        
+        // Circle at bottom
+        ctx.beginPath();
+        ctx.arc(x, actY + 30, 5, 0, Math.PI * 2);
+        ctx.stroke();
+    });
+    
+    // Footer
+    drawECAMFooter(ctx, width, height, apData);
 }
 
 function drawElectricalPage(ctx, width, height, apData) {
@@ -3356,425 +3362,327 @@ function drawBleedPressPage(ctx, width, height, apData) {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('BLEED / PRESSURIZATION', width / 2, 15);
+    ctx.fillText('BLEED', width / 2, 15);
     
-    const bleedAir1 = apData.bleedAir1 || false;
-    const bleedAir2 = apData.bleedAir2 || false;
-    const bleedAirApu = apData.bleedAirApu || false;
-    const eng1BleedPsi = apData.eng1BleedAirPsi || 0;
-    const eng2BleedPsi = apData.eng2BleedAirPsi || 0;
+    const bleedControl = apData.bleedAirSourceControl || 0;
+    const eng1Psi = apData.eng1BleedAirPsi || 0;
+    const eng2Psi = apData.eng2BleedAirPsi || 0;
     
-    const engineAntiIce1 = apData.engineAntiIce1 || false;
-    const engineAntiIce2 = apData.engineAntiIce2 || false;
-    const wingAntiIce = apData.wingAntiIce || false;
+    const bleedAir1 = bleedControl === 0 || bleedControl === 3;
+    const bleedAir2 = bleedControl === 0 || bleedControl === 3;
+    const bleedAirApu = bleedControl === 2;
     
-    const cabinAlt = apData.cabinAltitude || 0;
-    const cabinRate = apData.cabinRate || 0;
-    const pressDiff = apData.pressureDifferential || 0;
-    
-    // Enhanced engine bleed sections with PSI boxes
-    const eng1X = 40;
-    const eng2X = width - 40;
-    const bleedY = 35;
-    
-    // Engine 1 bleed
-    ctx.fillStyle = '#167fac';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('ENG 1', eng1X, bleedY);
-    
-    // PSI box for eng 1
-    const psi1Color = eng1BleedPsi > 25 ? '#00ff00' : '#ff8800';
-    ctx.strokeStyle = psi1Color;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(eng1X - 25, bleedY + 5, 50, 18);
-    
-    ctx.fillStyle = psi1Color;
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText(eng1BleedPsi.toFixed(1), eng1X, bleedY + 18);
-    
-    ctx.fillStyle = '#888';
-    ctx.font = '8px Arial';
-    ctx.fillText('PSI', eng1X, bleedY + 30);
-    
-    // Valve indicator
-    ctx.strokeStyle = bleedAir1 ? '#00ff00' : '#666';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(eng1X - 8, bleedY + 35, 16, 16);
-    
-    if (bleedAir1) {
-        ctx.fillStyle = '#00ff00';
-        ctx.fillRect(eng1X - 6, bleedY + 37, 12, 12);
-    }
-    
-    // Bleed line from eng1
-    ctx.beginPath();
-    ctx.moveTo(eng1X, bleedY + 51);
-    ctx.lineTo(eng1X, bleedY + 70);
-    ctx.lineTo(width / 2 - 30, bleedY + 70);
-    ctx.stroke();
-    
-    // Engine 2 bleed (mirror)
-    ctx.fillStyle = '#167fac';
-    ctx.fillText('ENG 2', eng2X, bleedY);
-    
-    const psi2Color = eng2BleedPsi > 25 ? '#00ff00' : '#ff8800';
-    ctx.strokeStyle = psi2Color;
-    ctx.strokeRect(eng2X - 25, bleedY + 5, 50, 18);
-    
-    ctx.fillStyle = psi2Color;
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText(eng2BleedPsi.toFixed(1), eng2X, bleedY + 18);
-    
-    ctx.fillStyle = '#888';
-    ctx.font = '8px Arial';
-    ctx.fillText('PSI', eng2X, bleedY + 30);
-    
-    ctx.strokeStyle = bleedAir2 ? '#00ff00' : '#666';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(eng2X - 8, bleedY + 35, 16, 16);
-    
-    if (bleedAir2) {
-        ctx.fillStyle = '#00ff00';
-        ctx.fillRect(eng2X - 6, bleedY + 37, 12, 12);
-    }
-    
-    ctx.beginPath();
-    ctx.moveTo(eng2X, bleedY + 51);
-    ctx.lineTo(eng2X, bleedY + 70);
-    ctx.lineTo(width / 2 + 30, bleedY + 70);
-    ctx.stroke();
-    
-    // APU bleed with animated flow
     const centerX = width / 2;
-    ctx.fillStyle = '#888';
-    ctx.font = '8px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('APU', centerX, bleedY);
+    const topY = 35;
     
-    ctx.strokeStyle = bleedAirApu ? '#00ff00' : '#666';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(centerX - 12, bleedY + 8, 24, 14);
+    // Engine 1 Section (Left)
+    const eng1X = 60;
+    const eng1Y = topY + 25;
     
-    if (bleedAirApu) {
-        ctx.fillStyle = '#00ff00';
-        ctx.fillRect(centerX - 10, bleedY + 10, 20, 10);
-    }
-    
-    ctx.lineWidth = 3;
+    // Status triangle
+    ctx.fillStyle = bleedAir1 ? '#00ff00' : '#888';
     ctx.beginPath();
-    ctx.moveTo(centerX, bleedY + 22);
-    ctx.lineTo(centerX, bleedY + 70);
+    ctx.moveTo(eng1X - 20, topY);
+    ctx.lineTo(eng1X - 25, topY + 8);
+    ctx.lineTo(eng1X - 15, topY + 8);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Temperature box with C/H labels
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(eng1X - 25, eng1Y, 50, 60);
+    
+    // C and H labels
+    ctx.fillStyle = '#888';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('C', eng1X - 35, eng1Y + 15);
+    ctx.fillText('LO', eng1X - 35, eng1Y + 50);
+    
+    ctx.textAlign = 'right';
+    ctx.fillText('H', eng1X + 35, eng1Y + 15);
+    ctx.fillText('HI', eng1X + 35, eng1Y + 50);
+    
+    // Temperature values
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('12', eng1X, eng1Y + 18);
+    
+    ctx.fillStyle = '#67A4C1';
+    ctx.font = '10px Arial';
+    ctx.fillText('°C', eng1X + 15, eng1Y + 18);
+    
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText('179', eng1X, eng1Y + 45);
+    
+    ctx.fillStyle = '#67A4C1';
+    ctx.font = '10px Arial';
+    ctx.fillText('°C', eng1X + 18, eng1Y + 45);
+    
+    // Valve circle
+    ctx.strokeStyle = bleedAir1 ? '#00ff00' : '#888';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(eng1X, eng1Y + 70, 10, 0, Math.PI * 2);
     ctx.stroke();
     
-    // Main manifold
-    const manifoldY = bleedY + 70;
-    const anyBleed = bleedAir1 || bleedAir2 || bleedAirApu;
-    ctx.strokeStyle = anyBleed ? '#00ff00' : '#666';
-    ctx.lineWidth = 5;
+    // Vertical line down
+    ctx.beginPath();
+    ctx.moveTo(eng1X, eng1Y + 80);
+    ctx.lineTo(eng1X, 145);
+    ctx.stroke();
+    
+    // Engine 2 Section (Right) - Mirror of Engine 1
+    const eng2X = width - 60;
+    
+    ctx.fillStyle = bleedAir2 ? '#00ff00' : '#888';
+    ctx.beginPath();
+    ctx.moveTo(eng2X + 20, topY);
+    ctx.lineTo(eng2X + 25, topY + 8);
+    ctx.lineTo(eng2X + 15, topY + 8);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(eng2X - 25, eng1Y, 50, 60);
+    
+    ctx.fillStyle = '#888';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('C', eng2X - 35, eng1Y + 15);
+    ctx.fillText('LO', eng2X - 35, eng1Y + 50);
+    
+    ctx.textAlign = 'right';
+    ctx.fillText('H', eng2X + 35, eng1Y + 15);
+    ctx.fillText('HI', eng2X + 35, eng1Y + 50);
+    
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('12', eng2X, eng1Y + 18);
+    
+    ctx.fillStyle = '#67A4C1';
+    ctx.font = '10px Arial';
+    ctx.fillText('°C', eng2X + 15, eng1Y + 18);
+    
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText('179', eng2X, eng1Y + 45);
+    
+    ctx.fillStyle = '#67A4C1';
+    ctx.font = '10px Arial';
+    ctx.fillText('°C', eng2X + 18, eng1Y + 45);
+    
+    ctx.strokeStyle = bleedAir2 ? '#00ff00' : '#888';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(eng2X, eng1Y + 70, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.moveTo(eng2X, eng1Y + 80);
+    ctx.lineTo(eng2X, 145);
+    ctx.stroke();
+    
+    // RAM AIR (center top)
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('RAM', centerX, topY + 45);
+    ctx.fillText('AIR', centerX, topY + 57);
+    
+    // Center valve with triangle
+    ctx.fillStyle = bleedAirApu ? '#00ff00' : '#888';
+    ctx.beginPath();
+    ctx.moveTo(centerX, topY);
+    ctx.lineTo(centerX - 5, topY + 8);
+    ctx.lineTo(centerX + 5, topY + 8);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, topY + 30, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Horizontal main manifold line
+    const manifoldY = 145;
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(20, manifoldY);
     ctx.lineTo(width - 20, manifoldY);
     ctx.stroke();
     
-    // ANTI-ICE SECTION
-    const antiIceY = manifoldY + 30;
+    // Circles on manifold
+    [eng1X - 5, eng1X + 30, centerX, eng2X - 30, eng2X + 5].forEach(x => {
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, manifoldY, 8, 0, Math.PI * 2);
+        ctx.stroke();
+    });
     
-    ctx.fillStyle = '#167fac';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('ANTI  ICE', centerX - 4, antiIceY);
+    // PSI boxes and vertical lines (Engine 1)
+    const psiBoxY = 160;
+    ctx.strokeStyle = '#00ff00';
+    ctx.fillStyle = '#000';
+    ctx.fillRect(eng1X - 25, psiBoxY, 50, 28);
+    ctx.strokeRect(eng1X - 25, psiBoxY, 50, 28);
     
-    // Wing anti-ice
-    ctx.strokeStyle = anyBleed ? '#00ff00' : '#666';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(centerX, manifoldY);
-    ctx.lineTo(centerX, antiIceY + 10);
-    ctx.stroke();
-    
-    ctx.strokeStyle = wingAntiIce ? '#ff8800' : '#666';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(centerX - 20, antiIceY + 10, 40, 15);
-    
-    ctx.fillStyle = wingAntiIce ? '#ff8800' : '#666';
-    ctx.font = 'bold 8px Arial';
-    ctx.fillText('WING', centerX, antiIceY + 21);
-    
-    // Engine anti-ice indicators
-    const engAntiIceY = antiIceY + 12;
-    
-    // Eng 1 anti-ice
-    ctx.strokeStyle = anyBleed ? '#00ff00' : '#666';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(eng1X, manifoldY);
-    ctx.lineTo(eng1X, engAntiIceY);
-    ctx.stroke();
-    
-    ctx.strokeStyle = engineAntiIce1 ? '#ff8800' : '#666';
-    ctx.strokeRect(eng1X - 15, engAntiIceY, 30, 13);
-    
-    ctx.fillStyle = engineAntiIce1 ? '#ff8800' : '#666';
-    ctx.font = 'bold 8px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('ENG 1', eng1X, engAntiIceY + 10);
-    
-    // Eng 2 anti-ice
-    ctx.strokeStyle = anyBleed ? '#00ff00' : '#666';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(eng2X, manifoldY);
-    ctx.lineTo(eng2X, engAntiIceY);
-    ctx.stroke();
-    
-    ctx.strokeStyle = engineAntiIce2 ? '#ff8800' : '#666';
-    ctx.strokeRect(eng2X - 15, engAntiIceY, 30, 13);
-    
-    ctx.fillStyle = engineAntiIce2 ? '#ff8800' : '#666';
-    ctx.font = 'bold 8px Arial';
-    ctx.fillText('ENG 2', eng2X, engAntiIceY + 10);
-    
-    // PRESSURIZATION SECTION
-    const pressY = height - 70;
-    
-    ctx.fillStyle = '#167fac';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('CABIN PRESSURE', centerX, pressY);
-    
-    // Cabin altitude
     ctx.fillStyle = '#888';
     ctx.font = '8px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText('ALT:', 20, pressY + 20);
+    ctx.fillText('PSI', eng1X - 20, psiBoxY + 10);
     
-    ctx.fillStyle = cabinAlt > 10000 ? '#ff8800' : '#00ff00';
-    ctx.font = 'bold 10px Arial';
-    ctx.fillText(Math.round(cabinAlt) + ' FT', 50, pressY + 20);
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round(eng1Psi), eng1X, psiBoxY + 23);
     
-    // Cabin rate
-    ctx.fillStyle = '#888';
-    ctx.font = '8px Arial';
-    ctx.fillText('RATE:', 20, pressY + 35);
+    ctx.fillStyle = '#67A4C1';
+    ctx.font = '9px Arial';
+    ctx.fillText('°C', eng1X + 18, psiBoxY + 23);
     
-    const absRate = Math.abs(cabinRate);
-    ctx.fillStyle = absRate > 2000 ? '#ff8800' : '#00ff00';
-    ctx.font = 'bold 10px Arial';
-    const rateSign = cabinRate > 0 ? '+' : '';
-    ctx.fillText(rateSign + Math.round(cabinRate) + ' FPM', 50, pressY + 35);
+    // Vertical line and circle below
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(eng1X, psiBoxY + 28);
+    ctx.lineTo(eng1X, 210);
+    ctx.stroke();
     
-    // Differential pressure
+    ctx.beginPath();
+    ctx.arc(eng1X, 220, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Lower valve with arrow
+    ctx.beginPath();
+    ctx.moveTo(eng1X - 8, 235);
+    ctx.lineTo(eng1X, 235);
+    ctx.lineTo(eng1X, 245);
+    ctx.lineTo(eng1X - 5, 240);
+    ctx.moveTo(eng1X, 245);
+    ctx.lineTo(eng1X + 5, 240);
+    ctx.stroke();
+    
+    // IP/HP labels
+    ctx.fillStyle = '#fff';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('IP', eng1X - 20, 260);
+    ctx.fillText('HP', eng1X + 20, 260);
+    
+    // Number "1"
+    ctx.fillText('1', eng1X - 40, 225);
+    
+    // APU section (center)
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px Arial';
+    ctx.fillText('APU', centerX, 225);
+    
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX, manifoldY);
+    ctx.lineTo(centerX, 200);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.arc(centerX, 210, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // PSI boxes (Engine 2) - Mirror of Engine 1
+    ctx.strokeStyle = '#00ff00';
+    ctx.fillStyle = '#000';
+    ctx.fillRect(eng2X - 25, psiBoxY, 50, 28);
+    ctx.strokeRect(eng2X - 25, psiBoxY, 50, 28);
+    
     ctx.fillStyle = '#888';
     ctx.font = '8px Arial';
     ctx.textAlign = 'right';
-    ctx.fillText('DIFF:', width - 50, pressY + 20);
+    ctx.fillText('PSI', eng2X + 20, psiBoxY + 10);
     
-    ctx.fillStyle = pressDiff > 9 ? '#ff8800' : '#00ff00';
-    ctx.font = 'bold 10px Arial';
-    ctx.fillText(pressDiff.toFixed(1) + ' PSI', width - 20, pressY + 20);
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round(eng2Psi), eng2X, psiBoxY + 23);
+    
+    ctx.fillStyle = '#67A4C1';
+    ctx.font = '9px Arial';
+    ctx.fillText('°C', eng2X + 18, psiBoxY + 23);
+    
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(eng2X, psiBoxY + 28);
+    ctx.lineTo(eng2X, 210);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.arc(eng2X, 220, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.moveTo(eng2X + 8, 235);
+    ctx.lineTo(eng2X, 235);
+    ctx.lineTo(eng2X, 245);
+    ctx.lineTo(eng2X - 5, 240);
+    ctx.moveTo(eng2X, 245);
+    ctx.lineTo(eng2X + 5, 240);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('HP', eng2X - 20, 260);
+    ctx.fillText('IP', eng2X + 20, 260);
+    ctx.fillText('2', eng2X + 40, 225);
+    
+    // Footer
+    drawECAMFooter(ctx, width, height, apData);
 }
 
 function drawDoorsOxyPage(ctx, width, height, apData) {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, width, height);
     
-    // Title
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('DOOR/OXY', width / 2, 15);
     
-    // Oxygen pressure in top right
+    // Oxygen in top right
     const oxygenPressure = apData.oxygenPressure || 1800;
     const oxyColor = oxygenPressure > 1000 ? '#00ff00' : '#ff8800';
     
     ctx.fillStyle = '#888';
     ctx.font = '9px Arial';
     ctx.textAlign = 'right';
-    ctx.fillText('CKPT OXY', width - 65, 20);
+    ctx.fillText('CKPT OXY', width - 45, 22);
     
     ctx.fillStyle = oxyColor;
-    ctx.font = 'bold 11px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(Math.round(oxygenPressure), width - 30, 20);
-    
-    ctx.fillStyle = '#888';
-    ctx.font = '8px Arial';
-    ctx.fillText('PSI', width - 10, 20);
-    
-    ctx.fillStyle = oxyColor;
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText(Math.round(oxygenPressure), width - 10, 32);
-    
-    const exitDoor = apData.exitDoor || 0;
-    const cargoDoor = apData.cargoDoor || 0;
-    const canopyOpen = apData.canopyOpen || 0;
-    
-    // Aircraft outline - refined proportions
-    const centerX = width / 2;
-    const topY = 50;
-    const noseY = topY;
-    const tailY = 230;
-    const fuselageWidth = 28;
-    
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.5;
-    
-    // Fuselage outline
-    ctx.beginPath();
-    // Nose
-    ctx.moveTo(centerX, noseY);
-    ctx.lineTo(centerX - 8, noseY + 15);
-    ctx.lineTo(centerX - fuselageWidth/2, noseY + 25);
-    // Left side
-    ctx.lineTo(centerX - fuselageWidth/2, tailY - 30);
-    ctx.lineTo(centerX - 15, tailY);
-    // Tail
-    ctx.lineTo(centerX, tailY + 5);
-    ctx.lineTo(centerX + 15, tailY);
-    // Right side
-    ctx.lineTo(centerX + fuselageWidth/2, tailY - 30);
-    ctx.lineTo(centerX + fuselageWidth/2, noseY + 25);
-    ctx.lineTo(centerX + 8, noseY + 15);
-    ctx.closePath();
-    ctx.stroke();
-    
-    // Wings
-    ctx.beginPath();
-    ctx.moveTo(centerX - fuselageWidth/2, 140);
-    ctx.lineTo(centerX - 75, 150);
-    ctx.lineTo(centerX - 78, 155);
-    ctx.lineTo(centerX - fuselageWidth/2, 148);
-    ctx.closePath();
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(centerX + fuselageWidth/2, 140);
-    ctx.lineTo(centerX + 75, 150);
-    ctx.lineTo(centerX + 78, 155);
-    ctx.lineTo(centerX + fuselageWidth/2, 148);
-    ctx.closePath();
-    ctx.stroke();
-    
-    // Door positions - matching reference image layout
-    const doorWidth = 8;
-    const doorHeight = 12;
-    const doorColor = '#00ff00';
-    const doorOpenColor = '#ff8800';
-    
-    // Left side doors (from top to bottom)
-    const leftX = centerX - fuselageWidth/2;
-    const leftDoors = [
-        { y: 70, name: 'L1', open: exitDoor > 10 },      // Front left
-        { y: 95, name: 'L2', open: false },              // Mid-front left
-        { y: 160, name: 'L3', open: false },             // Mid-rear left
-        { y: 200, name: 'L4', open: false }              // Rear left
-    ];
-    
-    leftDoors.forEach(door => {
-        ctx.strokeStyle = door.open ? doorOpenColor : doorColor;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(leftX - doorWidth - 2, door.y, doorWidth, doorHeight);
-        
-        if (door.open) {
-            ctx.fillStyle = 'rgba(255, 136, 0, 0.3)';
-            ctx.fillRect(leftX - doorWidth - 2, door.y, doorWidth, doorHeight);
-        }
-    });
-    
-    // Right side doors
-    const rightX = centerX + fuselageWidth/2;
-    const rightDoors = [
-        { y: 70, name: 'R1', open: false },
-        { y: 95, name: 'R2', open: false },
-        { y: 160, name: 'R3', open: false },
-        { y: 200, name: 'R4', open: false }
-    ];
-    
-    rightDoors.forEach(door => {
-        ctx.strokeStyle = door.open ? doorOpenColor : doorColor;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(rightX + 2, door.y, doorWidth, doorHeight);
-        
-        if (door.open) {
-            ctx.fillStyle = 'rgba(255, 136, 0, 0.3)';
-            ctx.fillRect(rightX + 2, door.y, doorWidth, doorHeight);
-        }
-    });
-    
-    // Cargo doors (belly)
-    const cargoDoors = [
-        { x: centerX - 10, y: 120, w: 20, h: 8, open: false },      // Front cargo
-        { x: centerX - 10, y: 180, w: 20, h: 8, open: cargoDoor > 10 }  // Rear cargo
-    ];
-    
-    cargoDoors.forEach(door => {
-        ctx.strokeStyle = door.open ? doorOpenColor : doorColor;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(door.x, door.y, door.w, door.h);
-        
-        if (door.open) {
-            ctx.fillStyle = 'rgba(255, 136, 0, 0.3)';
-            ctx.fillRect(door.x, door.y, door.w, door.h);
-        }
-    });
-    
-    // Emergency exit labels on wings
-    ctx.fillStyle = '#888';
-    ctx.font = '8px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('SLIDE', centerX - 75, 165);
-    ctx.fillText('SLIDE', centerX + 75, 165);
-    
-    // Status indicators at bottom
-    const bottomY = height - 30;
-    
-    // TAT and SAT
-    ctx.fillStyle = '#888';
-    ctx.font = '9px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText('TAT', 20, bottomY);
-    ctx.fillText('SAT', 20, bottomY + 12);
-    
-    const tat = apData.tatTemperature || 12;
-    const sat = apData.satTemperature || 12;
-    
-    ctx.fillStyle = '#00ff00';
     ctx.font = 'bold 10px Arial';
-    ctx.fillText('+' + tat, 50, bottomY);
-    ctx.fillText('+' + sat, 50, bottomY + 12);
-    
-    ctx.fillStyle = '#67A4C1';
-    ctx.font = '9px Arial';
-    ctx.fillText('°C', 75, bottomY);
-    ctx.fillText('°C', 75, bottomY + 12);
-    
-    // Time
-    const now = new Date();
-    const hours = now.getUTCHours().toString().padStart(2, '0');
-    const minutes = now.getUTCMinutes().toString().padStart(2, '0');
-    
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 11px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(hours + ' H ' + minutes, centerX, bottomY + 6);
-    
-    // GW (Gross Weight)
-    ctx.fillStyle = '#888';
-    ctx.font = '9px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText('GW', width - 60, bottomY);
-    
-    const grossWeight = apData.grossWeight || 59700;
-    ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText(grossWeight, width - 10, bottomY);
+    ctx.fillText(Math.round(oxygenPressure), width - 8, 22);
     
     ctx.fillStyle = '#888';
     ctx.font = '8px Arial';
-    ctx.fillText('KG', width - 10, bottomY + 12);
-}
+    ctx.fillText('PSI', width - 8, 32);
+    
+    ctx.fillStyle = oxyColor;
+    ctx.font = 'bold 10px Arial';
+    ctx.fillText(Math.round(oxygenPressure), width - 8, 42);
+    
+    // Get door states - NOW PROPERLY CHECKED
+    const door1 = (apData.door1Open || 0) > 10; // TRUE if open
+    const door2 = (apData.door2Open || 0) > 10;
+    const door3 = (apData.door3Open || 0) > 10;
+    const door4 = (apData.door4Open || 0) >
 
 
 
@@ -4128,6 +4036,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
