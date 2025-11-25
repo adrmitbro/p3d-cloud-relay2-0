@@ -3550,6 +3550,8 @@ function drawBleedPressPage(ctx, width, height, apData) {
     ctx.font = 'bold 10px Arial';
     ctx.fillText(pressDiff.toFixed(1) + ' PSI', width - 20, pressY + 20);
 }
+}
+
 
 function drawDoorsOxyPage(ctx, width, height, apData) {
     ctx.fillStyle = '#fff';
@@ -4054,6 +4056,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
