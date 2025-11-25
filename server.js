@@ -3271,7 +3271,7 @@ function drawElectricalPage(ctx, width, height, apData) {
     ctx.fillStyle = '#888';
     ctx.font = '7px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('AVIONICS', centerX - 50, loadY + 27);
+    ctx.fillText('AVIONICS', centerX - 50, loadY + 28);
     
     ctx.fillStyle = '#00ff00';
     ctx.font = 'bold 9px Arial';
@@ -3292,7 +3292,7 @@ function drawElectricalPage(ctx, width, height, apData) {
     ctx.fillStyle = '#888';
     ctx.font = '7px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('BATTERY', battX, loadY + 27);
+    ctx.fillText('BATTERY', battX, loadY + 28);
     
     ctx.fillStyle = batteryVoltage > 20 ? '#00ff00' : '#ff8800';
     ctx.font = 'bold 9px Arial';
@@ -3459,7 +3459,7 @@ function drawBleedPressPage(ctx, width, height, apData) {
     ctx.fillStyle = '#167fac';
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('ANTI-ICE', centerX, antiIceY);
+    ctx.fillText('ANTI-ICE', centerX - 1, antiIceY);
     
     // Wing anti-ice
     ctx.strokeStyle = anyBleed ? '#00ff00' : '#666';
@@ -4054,6 +4054,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
