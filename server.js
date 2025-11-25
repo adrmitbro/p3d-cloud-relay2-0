@@ -2768,7 +2768,7 @@ function drawFuelPage(ctx, width, height, apData) {
     ctx.fillStyle = '#888';
     ctx.font = '8px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('LEFT', leftX, height - 60);
+    ctx.fillText('LEFT', leftX, height - 58);
     
     // Tank circles - RIGHT
     const rightX = width - 50;
@@ -2789,7 +2789,7 @@ function drawFuelPage(ctx, width, height, apData) {
     ctx.fillStyle = '#888';
     ctx.font = '8px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('RIGHT', rightX, height - 60);
+    ctx.fillText('RIGHT', rightX, height - 58);
     
     // CENTER tank circle
     const centerTankY = topY + 75;
@@ -2810,7 +2810,7 @@ function drawFuelPage(ctx, width, height, apData) {
     ctx.fillStyle = '#888';
     ctx.font = '8px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('CTR', centerX, height - 60);
+    ctx.fillText('CTR', centerX, height - 58);
     
     // Horizontal line connecting all tanks at bottom
     const bottomLineY = height - 80;
@@ -3122,22 +3122,22 @@ function drawHydraulicsPage(ctx, width, height, apData) {
     ctx.fillText('FLP', width - 100, distY + 82);
     
     // Status text at bottom
-    const statusY = height - 20;
+    const statusY = height - 30;
     
     ctx.fillStyle = '#888';
     ctx.font = '8px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText('SYSTEM A:', 10, statusY);
+    ctx.fillText('SYS A:', 10, statusY);
     
     ctx.fillStyle = hydA > 2500 ? '#00ff00' : '#ff8800';
-    ctx.fillText(hydA > 2500 ? 'NORMAL' : 'LOW', 65, statusY);
+    ctx.fillText(hydA > 2500 ? 'NORM' : 'LOW', 48, statusY)
     
     ctx.fillStyle = '#888';
     ctx.textAlign = 'right';
-    ctx.fillText('SYSTEM B:', width - 65, statusY);
+    ctx.fillText('SYS B:', width - 48, statusY);
     
     ctx.fillStyle = hydB > 2500 ? '#ffcc00' : '#ff8800';
-    ctx.fillText(hydB > 2500 ? 'NORMAL' : 'LOW', width - 10, statusY);
+    ctx.fillText(hydB > 2500 ? 'NORM' : 'LOW', width - 10, statusY);
 }
 
 function drawElectricalPage(ctx, width, height, apData) {
@@ -4054,6 +4054,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
