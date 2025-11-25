@@ -3682,7 +3682,94 @@ function drawDoorsOxyPage(ctx, width, height, apData) {
     const door1 = (apData.door1Open || 0) > 10; // TRUE if open
     const door2 = (apData.door2Open || 0) > 10;
     const door3 = (apData.door3Open || 0) > 10;
-    const door4 = (apData.door4Open || 0) >
+    const door4 = (apData.door4Open || 0) > 10;
+    const cargo1 = (apData.exitDoor || 0) > 10;
+    const cargo2 = (apData.cargoDoor || 0) > 10;
+
+    console.log('Door states:', { door1, door2, door3, door4, cargo1, cargo2 }); // Debug
+
+const centerX = width / 2;
+const topY = 60;
+const fuselageWidth = 28;
+
+// Aircraft outline
+ctx.strokeStyle = '#fff';
+ctx.lineWidth = 1.5;
+ctx.beginPath();
+ctx.moveTo(centerX, topY);
+ctx.lineTo(centerX - 8, topY + 15);
+ctx.lineTo(centerX - fuselageWidth/2, topY + 25);
+ctx.lineTo(centerX - fuselageWidth/2, 230);
+ctx.lineTo(centerX - 15, 240);
+ctx.lineTo(centerX, 245);
+ctx.lineTo(centerX + 15, 240);
+ctx.lineTo(centerX + fuselageWidth/2, 230);
+ctx.lineTo(centerX + fuselageWidth/2, topY + 25);
+ctx.lineTo(centerX + 8, topY + 15);
+ctx.closePath();
+ctx.stroke();
+
+// Wings
+ctx.beginPath();
+ctx.moveTo(centerX - fuselageWidth/2, 150);
+ctx.lineTo(centerX - 75, 160);
+ctx.lineTo(centerX - 78, 165);
+ctx.lineTo(centerX - fuselageWidth/2, 158);
+ctx.closePath();
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(centerX + fuselageWidth/2, 150);
+ctx.lineTo(centerX + 75, 160);
+ctx.lineTo(centerX + 78, 165);
+ctx.lineTo(centerX + fuselageWidth/2, 158);
+ctx.closePath();
+ctx.stroke();
+
+const doorWidth = 8;
+const doorHeight = 12;
+const leftX = centerX - fuselageWidth/2;
+const rightX = centerX + fuselageWidth/2;
+
+// Function to draw door
+function drawDoor(x, y, isOpen) {
+    ctx.strokeStyle = isOpen ? '#ff8800' : '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, doorWidth, doorHeight);
+    
+    if (isOpen) {
+        ctx.fillStyle = 'rgba(255, 136, 0, 0.3)';
+        ctx.fillRect(x, y, doorWidth, doorHeight);
+    }
+}
+
+// Left doors
+drawDoor(leftX - doorWidth - 2, 85, door1);
+drawDoor(leftX - doorWidth - 2, 110, door2);
+drawDoor(leftX - doorWidth - 2, 175, door3);
+drawDoor(leftX - doorWidth - 2, 210, door4);
+
+// Right doors
+drawDoor(rightX + 2, 85, false);
+drawDoor(rightX + 2, 110, false);
+drawDoor(rightX + 2, 175, false);
+drawDoor(rightX + 2, 210, false);
+
+// Cargo doors
+drawDoor(centerX - 10, 130, cargo1);
+drawDoor(centerX - 10, 190, cargo2);
+
+// SLIDE labels
+ctx.fillStyle = '#888';
+ctx.font = '8px Arial';
+ctx.textAlign = 'center';
+ctx.fillText('SLIDE', centerX - 75, 172);
+ctx.fillText('SLIDE', centerX + 75, 172);
+
+// Footer
+drawECAMFooter(ctx, width, height, apData);
+
+}
 
 
 
@@ -4036,6 +4123,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
