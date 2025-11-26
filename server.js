@@ -59,29 +59,63 @@ wss.on('connection', (ws, req) => {
         console.log(`PC registered: ${uniqueId}`);
       }
       
-      else if (data.type === 'connect_mobile') {
-        // Mobile connecting with unique ID
-        const uniqueId = data.uniqueId;
+// In the connect_mobile case, update to check for password in the initial connection:
+
+else if (data.type === 'connect_mobile') {
+    // Mobile connecting with unique ID
+    const uniqueId = data.uniqueId;
+    
+    if (!sessions.has(uniqueId)) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Invalid ID' }));
+        return;
+    }
+    
+    const session = sessions.get(uniqueId);
+    ws.uniqueId = uniqueId;
+    ws.clientType = 'mobile';
+    ws.hasControlAccess = false;
+    
+    // Generate or use provided device ID
+    const deviceId = data.deviceId || generateDeviceId();
+    ws.deviceId = deviceId;
+    
+    // Check if this device was previously authenticated
+    let autoAuthenticated = false;
+    if (session.authenticatedDevices.has(deviceId)) {
+        const deviceInfo = session.authenticatedDevices.get(deviceId);
+        ws.hasControlAccess = true;
+        ws.deviceName = deviceInfo.deviceName;
         
-        if (!sessions.has(uniqueId)) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Invalid ID' }));
-          return;
-        }
+        // Update last seen timestamp
+        deviceInfo.timestamp = Date.now();
+        autoAuthenticated = true;
+    }
+    // Check if password was provided in the initial connection
+    else if (data.password && (data.password === session.password || data.password === session.guestPassword)) {
+        ws.hasControlAccess = true;
+        ws.deviceName = data.deviceName || 'Unknown Device';
         
-        const session = sessions.get(uniqueId);
-        ws.uniqueId = uniqueId;
-        ws.clientType = 'mobile';
-        ws.hasControlAccess = false;
-        
-        session.mobileClients.add(ws);
-        
-        ws.send(JSON.stringify({ 
-          type: 'connected',
-          pcOnline: !!session.pcClient
-        }));
-        
-        console.log(`Mobile connected to: ${uniqueId}`);
-      }
+        // Store this device as authenticated
+        session.authenticatedDevices.set(deviceId, {
+            timestamp: Date.now(),
+            deviceName: ws.deviceName
+        });
+        autoAuthenticated = true;
+    }
+    
+    session.mobileClients.add(ws);
+    
+    ws.send(JSON.stringify({ 
+        type: 'connected',
+        pcOnline: !!session.pcClient,
+        hasControlAccess: ws.hasControlAccess,
+        deviceId: deviceId,
+        deviceName: ws.deviceName,
+        autoAuthenticated: autoAuthenticated // Let client know if auto-authenticated
+    }));
+    
+    console.log(`Mobile connected to: ${uniqueId}`);
+}
       
       else if (data.type === 'request_control') {
         // Mobile requesting control access
@@ -1118,35 +1152,164 @@ function switchTab(index) {
             }
         }
 
-        function connectToSim() {
-            uniqueId = document.getElementById('uniqueId').value.trim();
-            if (!uniqueId) {
-                alert('Please enter your Unique ID');
-                return;
+// In the connectToSim() function, update to save and use the password:
+
+function connectToSim() {
+    uniqueId = document.getElementById('uniqueId').value.trim();
+    deviceName = document.getElementById('deviceName').value.trim() || 'Unknown Device';
+    
+    if (!uniqueId) {
+        alert('Please enter your Unique ID');
+        return;
+    }
+    
+    // Generate or retrieve device ID from localStorage
+    deviceId = localStorage.getItem('p3d_device_id') || generateDeviceId();
+    localStorage.setItem('p3d_device_id', deviceId);
+    
+    // Save unique ID and device name
+    localStorage.setItem('p3d_unique_id', uniqueId);
+    localStorage.setItem('p3d_device_name', deviceName);
+    
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(protocol + '//' + window.location.host);
+    
+    ws.onopen = () => {
+        // Get saved password if available
+        const savedPassword = localStorage.getItem('p3d_password');
+        
+        ws.send(JSON.stringify({ 
+            type: 'connect_mobile',
+            uniqueId: uniqueId,
+            deviceId: deviceId,
+            deviceName: deviceName,
+            password: savedPassword || null // Send saved password if available
+        }));
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleMessage(data);
+    };
+
+    ws.onclose = () => {
+        updateStatus('offline');
+        setTimeout(connectToSim, 3000);
+    };
+}
+
+// Update the unlockControls() function to save the password:
+
+function unlockControls() {
+    const password = document.getElementById('controlPassword').value;
+    
+    // Save password to localStorage for future use
+    if (password) {
+        localStorage.setItem('p3d_password', password);
+    }
+    
+    ws.send(JSON.stringify({ type: 'request_control', password }));
+}
+
+// Update the handleMessage() function to handle auto-authentication:
+
+function handleMessage(data) {
+    switch(data.type) {
+        case 'connected':
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            updateStatus(data.pcOnline ? 'connected' : 'offline');
+            
+            // Update device information
+            if (data.deviceId) {
+                deviceId = data.deviceId;
+                document.getElementById('currentDeviceId').textContent = deviceId;
             }
             
-            localStorage.setItem('p3d_unique_id', uniqueId);
+            if (data.deviceName) {
+                deviceName = data.deviceName;
+                document.getElementById('currentDeviceName').textContent = deviceName;
+            }
             
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(protocol + '//' + window.location.host);
-            
-            ws.onopen = () => {
-                ws.send(JSON.stringify({ 
-                    type: 'connect_mobile',
-                    uniqueId: uniqueId
-                }));
-            };
+            // If we have control access, hide control lock
+            if (data.hasControlAccess) {
+                hasControl = true;
+                document.getElementById('controlLock').classList.add('hidden');
+                document.getElementById('controlPanel').classList.remove('hidden');
+            }
+            break;
 
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleMessage(data);
-            };
+        // ... other cases remain the same ...
 
-            ws.onclose = () => {
-                updateStatus('offline');
-                setTimeout(connectToSim, 3000);
-            };
-        }
+        case 'password_changed':
+            // Clear saved password when server password changes
+            localStorage.removeItem('p3d_password');
+            alert(data.message);
+            // Force re-authentication
+            hasControl = false;
+            document.getElementById('controlLock').classList.remove('hidden');
+            document.getElementById('controlPanel').classList.add('hidden');
+            document.getElementById('controlPassword').value = '';
+            break;
+        
+        case 'access_revoked':
+            // Clear saved password when access is revoked
+            localStorage.removeItem('p3d_password');
+            alert(data.message);
+            // Force re-authentication
+            hasControl = false;
+            document.getElementById('controlLock').classList.remove('hidden');
+            document.getElementById('controlPanel').classList.add('hidden');
+            document.getElementById('controlPassword').value = '';
+            break;
+    }
+}
+
+// Update window.onload to load saved password:
+
+window.onload = () => {
+    const savedId = localStorage.getItem('p3d_unique_id');
+    if (savedId) {
+        document.getElementById('uniqueId').value = savedId;
+    }
+    
+    const savedDeviceName = localStorage.getItem('p3d_device_name');
+    if (savedDeviceName) {
+        document.getElementById('deviceName').value = savedDeviceName;
+    }
+    
+    // Load device ID from localStorage
+    const savedDeviceId = localStorage.getItem('p3d_device_id');
+    if (savedDeviceId) {
+        deviceId = savedDeviceId;
+    }
+    
+    // Check if we have a saved password and pre-fill the password field
+    const savedPassword = localStorage.getItem('p3d_password');
+    if (savedPassword) {
+        document.getElementById('controlPassword').value = savedPassword;
+    }
+};
+
+// Add a "Clear Saved Password" button to the control lock section:
+
+// In the HTML, update the controlLock div:
+<div id='controlLock' class='card'>
+    <div class='info-box'>🔒 Enter password to access controls</div>
+    <input type='password' id='controlPassword' placeholder='Password'>
+    <button class='btn btn-primary' onclick='unlockControls()'>Unlock Controls</button>
+    <button class='btn btn-secondary' onclick='clearSavedPassword()' style='margin-top: 5px;'>Clear Saved Password</button>
+</div>
+
+// Add the clearSavedPassword function:
+
+function clearSavedPassword() {
+    if (confirm('Are you sure you want to clear the saved password? You will need to enter it again next time.')) {
+        localStorage.removeItem('p3d_password');
+        document.getElementById('controlPassword').value = '';
+        alert('Saved password cleared');
+    }
+}
 
         function handleMessage(data) {
             switch(data.type) {
@@ -2967,6 +3130,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
