@@ -119,32 +119,33 @@ wss.on('connection', (ws, req) => {
     try {
       const data = JSON.parse(message);
       
-      if (data.type === 'register_pc') {
-        // PC registering with unique ID
-        const uniqueId = data.uniqueId;
-        const password = data.password;
-        const guestPassword = data.guestPassword;
-        
-        ws.uniqueId = uniqueId;
-        ws.clientType = 'pc';
-        
-        if (!sessions.has(uniqueId)) {
-          sessions.set(uniqueId, {
+if (data.type === 'register_pc') {
+    const uniqueId = data.uniqueId;
+    const password = data.password;
+    const guestPassword = data.guestPassword;
+    
+    ws.uniqueId = uniqueId;
+    ws.clientType = 'pc';
+    
+    if (!sessions.has(uniqueId)) {
+        sessions.set(uniqueId, {
             pcClient: ws,
             mobileClients: new Set(),
             password: password,
-            guestPassword: guestPassword
-          });
-        } else {
-          const session = sessions.get(uniqueId);
-          session.pcClient = ws;
-          session.password = password;
-          session.guestPassword = guestPassword;
-        }
-        
-        ws.send(JSON.stringify({ type: 'registered', uniqueId }));
-        console.log(`PC registered: ${uniqueId}`);
-      }
+            guestPassword: guestPassword,
+            isGuestPasswordEnabled: guestPassword !== "" // Track if guest password is enabled
+        });
+    } else {
+        const session = sessions.get(uniqueId);
+        session.pcClient = ws;
+        session.password = password;
+        session.guestPassword = guestPassword;
+        session.isGuestPasswordEnabled = guestPassword !== ""; // Update this flag
+    }
+    
+    ws.send(JSON.stringify({ type: 'registered', uniqueId }));
+    console.log(`PC registered: ${uniqueId}`);
+}
       
 // In the connect_mobile case, update to check for password in the initial connection:
 
@@ -161,6 +162,8 @@ else if (data.type === 'connect_mobile') {
     ws.uniqueId = uniqueId;
     ws.clientType = 'mobile';
     ws.hasControlAccess = false;
+    // NEW: Track how this client authenticated to allow for revoking access later
+    ws.authenticatedWithGuestPassword = false;
     
     // Generate or use provided device ID
     const deviceId = data.deviceId || generateDeviceId();
@@ -172,22 +175,42 @@ else if (data.type === 'connect_mobile') {
         const deviceInfo = session.authenticatedDevices.get(deviceId);
         ws.hasControlAccess = true;
         ws.deviceName = deviceInfo.deviceName;
+        // RESTORE: How this device was authenticated before
+        ws.authenticatedWithGuestPassword = deviceInfo.authenticatedWithGuestPassword || false;
         
         // Update last seen timestamp
         deviceInfo.timestamp = Date.now();
         autoAuthenticated = true;
     }
     // Check if password was provided in the initial connection
-    else if (data.password && (data.password === session.password || data.password === session.guestPassword)) {
-        ws.hasControlAccess = true;
-        ws.deviceName = data.deviceName || 'Unknown Device';
+    else if (data.password) {
+        let authenticated = false;
+        let usedGuestPassword = false; // LOCAL: Track if guest password is used for this attempt
         
-        // Store this device as authenticated
-        session.authenticatedDevices.set(deviceId, {
-            timestamp: Date.now(),
-            deviceName: ws.deviceName
-        });
-        autoAuthenticated = true;
+        // Check main password
+        if (data.password === session.password) {
+            authenticated = true;
+        }
+        // IMPORTANT: Only check guest password if it's enabled on the server
+        else if (session.isGuestPasswordEnabled && data.password === session.guestPassword) {
+            authenticated = true;
+            usedGuestPassword = true;
+        }
+        
+        if (authenticated) {
+            ws.hasControlAccess = true;
+            // STORE: How this client authenticated
+            ws.authenticatedWithGuestPassword = usedGuestPassword;
+            ws.deviceName = data.deviceName || 'Unknown Device';
+            
+            // Store this device as authenticated, including the method
+            session.authenticatedDevices.set(deviceId, {
+                timestamp: Date.now(),
+                deviceName: ws.deviceName,
+                authenticatedWithGuestPassword: usedGuestPassword
+            });
+            autoAuthenticated = true;
+        }
     }
     
     session.mobileClients.add(ws);
@@ -198,29 +221,41 @@ else if (data.type === 'connect_mobile') {
         hasControlAccess: ws.hasControlAccess,
         deviceId: deviceId,
         deviceName: ws.deviceName,
-        autoAuthenticated: autoAuthenticated // Let client know if auto-authenticated
+        autoAuthenticated: autoAuthenticated,
+        // NEW: Inform the mobile client whether the guest password feature is enabled
+        guestPasswordEnabled: session.isGuestPasswordEnabled 
     }));
     
     console.log(`Mobile connected to: ${uniqueId}`);
 }
       
-      else if (data.type === 'request_control') {
-        // Mobile requesting control access
-        const password = data.password;
-        const session = sessions.get(ws.uniqueId);
-        
-        if (!session) {
-          ws.send(JSON.stringify({ type: 'auth_failed' }));
-          return;
-        }
-        
-        if (password === session.password || password === session.guestPassword) {
-          ws.hasControlAccess = true;
-          ws.send(JSON.stringify({ type: 'control_granted' }));
-        } else {
-          ws.send(JSON.stringify({ type: 'auth_failed' }));
-        }
-      }
+else if (data.type === 'request_control') {
+    const password = data.password;
+    const session = sessions.get(ws.uniqueId);
+    
+    if (!session) {
+        ws.send(JSON.stringify({ type: 'auth_failed' }));
+        return;
+    }
+    
+    let authenticated = false;
+    
+    // Check main password
+    if (password === session.password) {
+        authenticated = true;
+    }
+    // Only check guest password if it's enabled
+    else if (session.isGuestPasswordEnabled && password === session.guestPassword) {
+        authenticated = true;
+    }
+    
+    if (authenticated) {
+        ws.hasControlAccess = true;
+        ws.send(JSON.stringify({ type: 'control_granted' }));
+    } else {
+        ws.send(JSON.stringify({ type: 'auth_failed' }));
+    }
+}
       
       else {
         // Route all other messages
@@ -3445,6 +3480,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
