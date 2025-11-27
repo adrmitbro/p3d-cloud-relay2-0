@@ -3234,7 +3234,7 @@ function enableNotifications() {
             }
         }
 
-        function updateLockScreenNotification(data) {
+function updateLockScreenNotification(data) {
             const now = Date.now();
             if (now - lastNotificationTime < 5000) {
                 return;
@@ -3244,15 +3244,15 @@ function enableNotifications() {
             const distance = data.totalDistance ? data.totalDistance.toFixed(1) : '--';
             const nextWaypoint = data.nextWaypoint || 'No waypoint';
             
-            let body = `Distance: ${distance} nm`;
+            let body = 'Distance: ' + distance + ' nm';
             if (data.ete && data.ete > 0) {
                 const hours = Math.floor(data.ete / 3600);
                 const minutes = Math.floor((data.ete % 3600) / 60);
-                const eteText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}min`;
-                body += ` • ETE: ${eteText}`;
+                const eteText = hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'min';
+                body += ' • ETE: ' + eteText;
             }
             
-            new Notification(`✈️ ${nextWaypoint}`, {
+            new Notification('✈️ ' + nextWaypoint, {
                 body: body,
                 tag: 'p3d-distance',
                 requireInteraction: false,
@@ -3300,6 +3300,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
