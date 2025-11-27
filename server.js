@@ -1434,6 +1434,44 @@ function updateAutopilotUI(data) {
             }
         }
 
+        function enablePersistentNotification() {
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                startPersistentNotification();
+            }
+        });
+    } else if (Notification.permission === 'granted') {
+        startPersistentNotification();
+    }
+}
+
+function startPersistentNotification() {
+    // Update notification every 10 seconds with latest flight info
+    setInterval(() => {
+        if (currentFlightData && document.hidden) {
+            const waypoint = currentFlightData.nextWaypoint || 'No Waypoint';
+            const distance = currentFlightData.totalDistance ? currentFlightData.totalDistance.toFixed(1) + ' nm' : '--';
+            
+            let eteText = '--';
+            if (currentFlightData.ete && currentFlightData.ete > 0) {
+                const hours = Math.floor(currentFlightData.ete / 3600);
+                const minutes = Math.floor((currentFlightData.ete % 3600) / 60);
+                eteText = hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'min';
+            }
+            
+            new Notification('✈️ ' + waypoint, {
+                body: distance + ' • ETE: ' + eteText,
+                tag: 'flight-update',
+                requireInteraction: false,
+                silent: true,
+                icon: '/icon.png' // optional
+            });
+        }
+    }, 10000);
+}
+
 function updateAutopilotStatus(data) {
     updateStatusBadge('apMasterStatus', data.master);
     updateStatusBadge('apAltStatus', data.altitude);
@@ -3150,6 +3188,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
