@@ -1250,6 +1250,13 @@ case 'auth_failed':
             document.getElementById('nextWaypoint').textContent = data.nextWaypoint || 'No Active Waypoint';
             document.getElementById('wpDistance').textContent = 'Distance: ' + (data.distanceToWaypoint ? data.distanceToWaypoint.toFixed(1) + ' nm' : '--');
             document.getElementById('wpBearing').textContent = 'Bearing: ' + (data.bearingToWaypoint ? Math.round(data.bearingToWaypoint) + '°' : '--°');
+
+            // In the updateFlightData function, add:
+if ('setAppBadge' in navigator) {
+    const distance = Math.round(data.totalDistance || 0);
+    navigator.setAppBadge(distance);
+}
+
             
             if (data.waypointEte && data.waypointEte > 0) {
                 const wpHours = Math.floor(data.waypointEte / 3600);
@@ -3013,6 +3020,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
