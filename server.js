@@ -12,20 +12,7 @@ const PORT = process.env.PORT || 3000;
 // Simple session storage: uniqueId -> { pcClient, mobileClients: Set(), password, guestPassword }
 const sessions = new Map();
 
-// Serve static files from public directory
 app.use(express.static('public'));
-
-// Serve PWA files from root (required for iOS PWA)
-app.get('/manifest.json', (req, res) => {
-  res.sendFile(__dirname + '/manifest.json');
-});
-
-app.get('/service-worker.js', (req, res) => {
-  res.sendFile(__dirname + '/service-worker.js');
-});
-
-// Ensure images are served from root level
-app.use('/images', express.static('public/images'));
 
 app.get('/health', (req, res) => {
   res.json({ 
@@ -41,137 +28,141 @@ app.get('/', (req, res) => {
 wss.on('connection', (ws, req) => {
   console.log('New connection');
   
-ws.on('message', (message) => {
+  ws.on('message', (message) => {
     try {
-        const data = JSON.parse(message);
+      const data = JSON.parse(message);
+      
+if (data.type === 'register_pc') {
+  // PC registering with unique ID
+  const uniqueId = data.uniqueId;
+  const password = data.password;
+  const guestPassword = data.guestPassword;
+  const isGuestPasswordEnabled = data.isGuestPasswordEnabled !== false; // default to true for backwards compatibility
+  
+  ws.uniqueId = uniqueId;
+  ws.clientType = 'pc';
+  
+  if (!sessions.has(uniqueId)) {
+    sessions.set(uniqueId, {
+      pcClient: ws,
+      mobileClients: new Set(),
+      password: password,
+      guestPassword: guestPassword,
+      isGuestPasswordEnabled: isGuestPasswordEnabled
+    });
+} else {
+    const session = sessions.get(uniqueId);
+    session.pcClient = ws;
+    session.password = password;
+    session.guestPassword = guestPassword;
+    session.isGuestPasswordEnabled = isGuestPasswordEnabled;
+  }
         
-        if (data.type === 'register_pc') {
-            // PC registering with unique ID
-            const uniqueId = data.uniqueId;
-            const password = data.password;
-            const guestPassword = data.guestPassword;
-            const isGuestPasswordEnabled = data.isGuestPasswordEnabled !== false;
-            
-            ws.uniqueId = uniqueId;
-            ws.clientType = 'pc';
-            
-            if (!sessions.has(uniqueId)) {
-                sessions.set(uniqueId, {
-                    pcClient: ws,
-                    mobileClients: new Set(),
-                    password: password,
-                    guestPassword: guestPassword,
-                    isGuestPasswordEnabled: isGuestPasswordEnabled
-                });
-            } else {
-                const session = sessions.get(uniqueId);
-                session.pcClient = ws;
-                session.password = password;
-                session.guestPassword = guestPassword;
-                session.isGuestPasswordEnabled = isGuestPasswordEnabled;
-            }
-            
-            ws.send(JSON.stringify({ type: 'registered', uniqueId }));
-            console.log(`PC registered: ${uniqueId}`);
-        }
-        else if (data.type === 'connect_mobile') {
-            // Mobile connecting with unique ID
-            const uniqueId = data.uniqueId;
-            
-            if (!sessions.has(uniqueId)) {
-                ws.send(JSON.stringify({ type: 'error', message: 'Invalid ID' }));
-                return;
-            }
-            
-            const session = sessions.get(uniqueId);
-            ws.uniqueId = uniqueId;
-            ws.clientType = 'mobile';
-            ws.hasControlAccess = false;
-            
-            session.mobileClients.add(ws);
-            
-            ws.send(JSON.stringify({ 
-                type: 'connected',
-                pcOnline: !!session.pcClient
-            }));
-            
-            console.log(`Mobile connected to: ${uniqueId}`);
-        }
-        else if (data.type === 'request_control') {
-            // Mobile requesting control access
-            const password = data.password;
-            const session = sessions.get(ws.uniqueId);
-            
-            console.log('DEBUG request_control:');
-            console.log('  Entered password:', password);
-            console.log('  Session password:', session ? session.password : 'NO SESSION');
-            console.log('  Session guestPassword:', session ? session.guestPassword : 'NO SESSION');
-            console.log('  isGuestPasswordEnabled:', session ? session.isGuestPasswordEnabled : 'NO SESSION');
-            
-            if (!session) {
-                ws.send(JSON.stringify({ type: 'auth_failed' }));
-                return;
-            }
-            
-            const isMainPassword = password === session.password;
-            const isGuestPassword = session.isGuestPasswordEnabled && password === session.guestPassword;
-            
-            console.log('  isMainPassword:', isMainPassword);
-            console.log('  isGuestPassword:', isGuestPassword);
-            
-            if (isMainPassword || isGuestPassword) {
-                ws.hasControlAccess = true;
-                ws.send(JSON.stringify({ type: 'control_granted' }));
-            } else {
-                ws.send(JSON.stringify({ type: 'auth_failed' }));
-            }
-        }
-        else {
-            // Route all other messages
-            const session = sessions.get(ws.uniqueId);
-            if (!session) return;
-            
-            if (ws.clientType === 'mobile' && session.pcClient) {
-                // Check if command requires control access
-                if (data.type.includes('autopilot') || 
-                    data.type === 'pause_toggle' || 
-                    data.type === 'save_game' ||
-                    data.type === 'toggle_gear' ||
-                    data.type === 'toggle_spoilers' ||
-                    data.type === 'toggle_speedbrake' ||
-                    data.type === 'toggle_parking_brake' ||
-                    data.type === 'change_flaps' ||
-                    data.type === 'throttle_control' ||
-                    data.type.includes('toggle_light') || 
-                    data.type.includes('toggle_cabin')) {
-                    if (!ws.hasControlAccess) {
-                        ws.send(JSON.stringify({ 
-                            type: 'control_required',
-                            message: 'Enter password to access controls'
-                        }));
-                        return;
-                    }
-                }
-                
-                // Forward to PC
-                if (session.pcClient.readyState === WebSocket.OPEN) {
-                    session.pcClient.send(JSON.stringify(data));
-                }
-            }
-            else if (ws.clientType === 'pc') {
-                // Broadcast to all mobile clients
-                session.mobileClients.forEach(client => {
-                    if (client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify(data));
-                    }
-                });
-            }
+        ws.send(JSON.stringify({ type: 'registered', uniqueId }));
+        console.log(`PC registered: ${uniqueId}`);
+      }
+      
+      else if (data.type === 'connect_mobile') {
+        // Mobile connecting with unique ID
+        const uniqueId = data.uniqueId;
+        
+        if (!sessions.has(uniqueId)) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Invalid ID' }));
+          return;
         }
         
+        const session = sessions.get(uniqueId);
+        ws.uniqueId = uniqueId;
+        ws.clientType = 'mobile';
+        ws.hasControlAccess = false;
+        
+        session.mobileClients.add(ws);
+        
+        ws.send(JSON.stringify({ 
+          type: 'connected',
+          pcOnline: !!session.pcClient
+        }));
+        
+        console.log(`Mobile connected to: ${uniqueId}`);
+      }
+      
+else if (data.type === 'request_control') {
+  // Mobile requesting control access
+  const password = data.password;
+  const session = sessions.get(ws.uniqueId);
+  
+  console.log('DEBUG request_control:');
+  console.log('  Entered password:', password);
+  console.log('  Session password:', session ? session.password : 'NO SESSION');
+  console.log('  Session guestPassword:', session ? session.guestPassword : 'NO SESSION');
+  console.log('  isGuestPasswordEnabled:', session ? session.isGuestPasswordEnabled : 'NO SESSION');
+  
+  if (!session) {
+    ws.send(JSON.stringify({ type: 'auth_failed' }));
+    return;
+  }
+  
+  // Check main password or guest password (only if guest password is enabled)
+  const isMainPassword = password === session.password;
+  const isGuestPassword = session.isGuestPasswordEnabled && password === session.guestPassword;
+  
+  console.log('  isMainPassword:', isMainPassword);
+  console.log('  isGuestPassword:', isGuestPassword);
+  
+  if (isMainPassword || isGuestPassword) {
+    ws.hasControlAccess = true;
+    ws.send(JSON.stringify({ type: 'control_granted' }));
+  } else {
+    ws.send(JSON.stringify({ type: 'auth_failed' }));
+  }
+}
+      
+      else {
+        // Route all other messages
+        const session = sessions.get(ws.uniqueId);
+        if (!session) return;
+        
+        if (ws.clientType === 'mobile' && session.pcClient) {
+          // Check if command requires control access
+          if (data.type.includes('autopilot') || 
+              data.type === 'pause_toggle' || 
+              data.type === 'save_game' ||
+              data.type === 'toggle_gear' ||
+              data.type === 'toggle_spoilers' ||
+              data.type === 'toggle_speedbrake' ||
+              data.type === 'toggle_parking_brake' ||
+              data.type === 'change_flaps' ||
+              data.type === 'throttle_control' ||
+              data.type.includes('toggle_light') || 
+              data.type.includes('toggle_cabin')) {
+            if (!ws.hasControlAccess) {
+              ws.send(JSON.stringify({ 
+                type: 'control_required',
+                message: 'Enter password to access controls'
+              }));
+              return;
+            }
+          }
+          
+          // Forward to PC
+          if (session.pcClient.readyState === WebSocket.OPEN) {
+            session.pcClient.send(JSON.stringify(data));
+          }
+        }
+        else if (ws.clientType === 'pc') {
+          // Broadcast to all mobile clients
+          session.mobileClients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(data));
+            }
+          });
+        }
+      }
+      
     } catch (error) {
-        console.error('Error:', error);
+      console.error('Error:', error);
     }
-});
+  });
 
   ws.on('close', () => {
     if (ws.uniqueId && sessions.has(ws.uniqueId)) {
@@ -203,11 +194,12 @@ function getMobileAppHTML() {
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="/manifest.json">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="P3D Remote">
-    <link rel="apple-touch-icon" href="/images/icon.png">
 <title>P3D Remote</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="P3D Remote">
+<link rel="apple-touch-icon" href="/icon-192.png">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link href="https://fonts.cdnfonts.com/css/good-times-2" rel="stylesheet">
@@ -218,73 +210,6 @@ function getMobileAppHTML() {
             background: #000000;
             color: white;
             overflow-x: hidden;
-        }
-/* Notification Banner */
-        .notification-banner {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #167fac 0%, #1a8fd4 100%);
-            padding: 15px;
-            display: none;
-            z-index: 10000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-        
-        .notification-banner.show {
-            display: block;
-        }
-        
-        .notification-banner-content {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        
-        .notification-banner-text {
-            flex: 1;
-            margin-right: 15px;
-        }
-        
-        .notification-banner-text h3 {
-            margin: 0 0 5px 0;
-            font-size: 14px;
-            color: #fff;
-        }
-        
-        .notification-banner-text p {
-            margin: 0;
-            font-size: 12px;
-            opacity: 0.9;
-            color: #fff;
-        }
-        
-        .notification-banner-buttons {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .notification-banner-buttons button {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        
-        .notification-banner-buttons .btn-allow {
-            background: #fff;
-            color: #167fac;
-        }
-        
-        .notification-banner-buttons .btn-dismiss {
-            background: rgba(255,255,255,0.2);
-            color: #fff;
         }
         .header {
             background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
@@ -298,20 +223,6 @@ function getMobileAppHTML() {
             align-items: center;
             gap: 10px;
             font-family: 'Good Times', sans-serif;
-        }
-        .btn-icon {
-            transition: all 0.3s;
-        }
-        
-        .btn-icon.active {
-            background: #167fac !important;
-            color: white !important;
-        }
-        
-        .btn-icon.disabled {
-            opacity: 0.4;
-            border-color: #666 !important;
-            color: #666 !important;
         }
         .status {
             padding: 6px 12px;
@@ -825,31 +736,11 @@ function getMobileAppHTML() {
     </style>
 </head>
 <body>
-<!-- Notification Permission Banner -->
-    <div id='notificationBanner' class='notification-banner'>
-        <div class='notification-banner-content'>
-            <div class='notification-banner-text'>
-                <h3>🔔 Enable Lock Screen Updates</h3>
-                <p>Get flight progress on your lock screen</p>
-            </div>
-            <div class='notification-banner-buttons'>
-                <button class='btn-allow' onclick='requestNotificationPermission()'>Enable</button>
-                <button class='btn-dismiss' onclick='dismissNotificationBanner()'>Not Now</button>
-            </div>
-        </div>
-    </div>
-
-<div class='header'>
-        <div style='display: flex; justify-content: space-between; align-items: center;'>
-            <h1>Prepar3D Remote</h1>
-        </div>
+    <div class='header'>
+        <h1>Prepar3D Remote</h1>
         <div id='statusBadge' class='status offline'>Offline</div>
         <div id='pauseBadge' class='status paused'>Paused</div>
     </div>
-    <!-- TEST BUTTON - Remove after testing -->
-<div style='padding: 10px; background: #1a1a1a;'>
-    <button class='btn btn-secondary' onclick='testBanner()' style='width: 100%; margin: 0;'>🧪 Test Lock Screen Banner</button>
-</div>
 
     <div id='loginScreen' class='login-screen'>
         <div class='login-card'>
@@ -1222,10 +1113,6 @@ function getMobileAppHTML() {
         let userHeading = 0;
         let currentFlightData = {};
         let mapInitialized = false;
-        let wakeLock = null;
-        let lockScreenUpdateInterval = null;
-        
-let notificationInterval = null;
 let pfdCanvas = null;
 let pfdCtx = null;
 let mfdCanvas = null;
@@ -1288,16 +1175,6 @@ case 'connected':
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('mainApp').classList.remove('hidden');
     updateStatus(data.pcOnline ? 'connected' : 'offline');
-    
-    // Show connection notification
-    showNotification('P3D Remote', data.pcOnline ? 'Connected to simulator' : 'Simulator offline');
-    break;
-    
-    // Request wake lock
-    requestWakeLock();
-    
-    // Check notification support
-    checkNotificationSupport();
     break;
 
                 case 'save_complete':
@@ -1352,11 +1229,9 @@ case 'auth_failed':
                     }
                     break;
                     
-case 'pc_offline':
-    updateStatus('offline');
-    // Show disconnection notification
-    showNotification('P3D Remote', 'Simulator disconnected', { priority: 'high' });
-    break;
+                case 'pc_offline':
+                    updateStatus('offline');
+                    break;
             }
         }
 
@@ -1414,7 +1289,7 @@ case 'pc_offline':
                 btnPause.className = 'btn btn-secondary';
             }
 
-if (map && data.latitude && data.longitude) {
+            if (map && data.latitude && data.longitude) {
                 updateMap(data.latitude, data.longitude, data.heading);
             }
         }
@@ -1483,44 +1358,6 @@ function updateAutopilotUI(data) {
                 gearElement.className = 'arrow-up';
             }
         }
-
-        function enablePersistentNotification() {
-    // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-                startPersistentNotification();
-            }
-        });
-    } else if (Notification.permission === 'granted') {
-        startPersistentNotification();
-    }
-}
-
-function startPersistentNotification() {
-    // Update notification every 10 seconds with latest flight info
-    setInterval(() => {
-        if (currentFlightData && document.hidden) {
-            const waypoint = currentFlightData.nextWaypoint || 'No Waypoint';
-            const distance = currentFlightData.totalDistance ? currentFlightData.totalDistance.toFixed(1) + ' nm' : '--';
-            
-            let eteText = '--';
-            if (currentFlightData.ete && currentFlightData.ete > 0) {
-                const hours = Math.floor(currentFlightData.ete / 3600);
-                const minutes = Math.floor((currentFlightData.ete % 3600) / 60);
-                eteText = hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'min';
-            }
-            
-            new Notification('✈️ ' + waypoint, {
-                body: distance + ' • ETE: ' + eteText,
-                tag: 'flight-update',
-                requireInteraction: false,
-                silent: true,
-                icon: '/icon.png' // optional
-            });
-        }
-    }, 10000);
-}
 
 function updateAutopilotStatus(data) {
     updateStatusBadge('apMasterStatus', data.master);
@@ -3087,7 +2924,6 @@ function drawFlightControlsPage(ctx, width, height, apData) {
     ctx.fillText(spoilers.toFixed(0) + '%', 120, infoY);
 }
 
-
 function drawSystemBar(ctx, x, y, width, label, value, max, color) {
     ctx.font = '9px Arial';
     ctx.fillStyle = '#888';
@@ -3146,147 +2982,6 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
         ctx.stroke();
     }
 }
-function checkNotificationSupport() {
-    if (!('Notification' in window)) {
-        console.log('Notifications not supported');
-        return;
-    }
-    
-    const permission = Notification.permission;
-    
-    if (permission === 'default') {
-        // Show banner to request permission
-        setTimeout(() => {
-            document.getElementById('notificationBanner').classList.add('show');
-        }, 3000);
-    } else if (permission === 'granted') {
-        startNotificationUpdates();
-    }
-}
-
-async function requestNotificationPermission() {
-    try {
-        const permission = await Notification.requestPermission();
-        
-        if (permission === 'granted') {
-            document.getElementById('notificationBanner').classList.remove('show');
-            startNotificationUpdates();
-            
-            // Show success notification
-            new Notification('✈️ P3D Remote', {
-                body: 'Lock screen updates enabled!',
-                icon: '/icon.png',
-                tag: 'p3d-enabled'
-            });
-        } else {
-            alert('Please enable notifications in your browser settings to see flight updates on your lock screen.');
-        }
-    } catch (error) {
-        console.error('Notification permission error:', error);
-        alert('Unable to enable notifications. Make sure you\'ve added this app to your home screen.');
-    }
-}
-
-function dismissNotificationBanner() {
-    document.getElementById('notificationBanner').classList.remove('show');
-    localStorage.setItem('notification_banner_dismissed', 'true');
-}
-
-function startNotificationUpdates() {
-    // Update notification every 30 seconds when app is in background
-    if (notificationInterval) {
-        clearInterval(notificationInterval);
-    }
-    
-    notificationInterval = setInterval(() => {
-        if (document.hidden && currentFlightData && currentFlightData.nextWaypoint) {
-            updateLockScreenNotification();
-        }
-    }, 30000); // Every 30 seconds
-    
-    // Also listen for visibility changes
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden && currentFlightData && currentFlightData.nextWaypoint) {
-            updateLockScreenNotification();
-        }
-    });
-}
-
-function updateLockScreenNotification() {
-    if (Notification.permission !== 'granted') return;
-    if (!currentFlightData) return;
-    
-    const waypoint = currentFlightData.nextWaypoint || 'No Waypoint';
-    const distance = currentFlightData.totalDistance ? currentFlightData.totalDistance.toFixed(1) + ' nm' : '--';
-    
-    let eteText = '--';
-    if (currentFlightData.ete && currentFlightData.ete > 0) {
-        const hours = Math.floor(currentFlightData.ete / 3600);
-        const minutes = Math.floor((currentFlightData.ete % 3600) / 60);
-        eteText = hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'min';
-    }
-    
-    const altitude = Math.round(currentFlightData.altitude || 0).toLocaleString() + ' ft';
-    const speed = Math.round(currentFlightData.groundSpeed || 0) + ' kts';
-    
-    new Notification('✈️ ' + waypoint, {
-        body: distance + ' • ' + eteText + '\n' + speed + ' • ' + altitude,
-        icon: '/icon.png',
-        tag: 'p3d-flight-update',
-        requireInteraction: false,
-        silent: true
-    });
-}
-
-// Register service worker for notifications
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js')
-  .then(function(registration) {
-    console.log('Service Worker registered with scope:', registration.scope);
-  })
-  .catch(function(err) {
-    console.log('Service Worker registration failed:', err);
-  });
-}
-
-// Request notification permission
-function requestNotificationPermission() {
-  return new Promise(function(resolve, reject) {
-    const permissionResult = Notification.requestPermission(function(result) {
-      resolve(result);
-    });
-    
-    if (permissionResult) {
-      permissionResult.then(resolve, reject);
-    }
-  });
-}
-
-// Show notification function
-function showNotification(title, body, data = {}) {
-  if (Notification.permission === 'granted') {
-    navigator.serviceWorker.ready.then(function(registration) {
-      registration.showNotification(title, {
-        body: body,
-        icon: '/images/icon.png',
-        badge: '/images/badge.png',
-        vibrate: [100, 50, 100],
-        data: data,
-        requireInteraction: true,
-        actions: [
-          {
-            action: 'open',
-            title: 'Open App'
-          },
-          {
-            action: 'dismiss',
-            title: 'Dismiss'
-          }
-        ]
-      });
-    });
-  }
-}
 
 window.onload = () => {
     const savedId = localStorage.getItem('p3d_unique_id');
@@ -3300,6 +2995,17 @@ window.onload = () => {
     }
 };
     </script>
+
+        <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+    
 </body>
 </html>`;
 }
@@ -3307,19 +3013,6 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
