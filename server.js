@@ -1359,7 +1359,7 @@ updateEngineControls(data);
 function updateEngineControls(data) {
     const hasEngine1 = data.engine1N2 !== undefined && data.engine1N2 > 0;
     const hasEngine2 = data.engine2N2 !== undefined && data.engine2N2 > 0;
-    const hasEngine3 = data.engine3N2 !== undefined && data.engine3N2 > 0;
+    const hasEngine3 = data.engine3N2 !== undefined && data.engine3N3 > 0;
     const hasEngine4 = data.engine4N2 !== undefined && data.engine4N2 > 0;
     
     const engineCount = hasEngine4 ? 4 : (hasEngine3 ? 3 : 2);
@@ -1374,7 +1374,7 @@ function updateEngineControls(data) {
     document.getElementById('engine3Row').style.display = engineCount >= 3 ? 'flex' : 'none';
     document.getElementById('engine4Row').style.display = engineCount >= 4 ? 'flex' : 'none';
     
-// Update engine states using N2 > 10% as running indicator
+    // Update engine states using N2 > 10% as running indicator
     if (engineCount >= 1) updateToggle('engine1', data.engine1N2 > 10, data.engine1N2 > 10 ? 'ON' : 'OFF');
     if (engineCount >= 2) updateToggle('engine2', data.engine2N2 > 10, data.engine2N2 > 10 ? 'ON' : 'OFF');
     if (engineCount >= 3) updateToggle('engine3', data.engine3N2 > 10, data.engine3N2 > 10 ? 'ON' : 'OFF');
@@ -1382,6 +1382,10 @@ function updateEngineControls(data) {
 }
 
 function toggleEngine(engineNumber) {
+    if (!hasControl) {
+        alert('Please unlock controls first');
+        return;
+    }
     ws.send(JSON.stringify({ type: 'toggle_engine', engineNumber: engineNumber }));
 }
 
@@ -3051,6 +3055,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
