@@ -1343,7 +1343,7 @@ updateEngineIndicators(data);
             updateAutopilotStatus(data);
         }
 
-        function updateEngineIndicators(data) {
+function updateEngineIndicators(data) {
     // Determine number of engines
     const hasEngine3 = data.engine3N2 !== undefined && data.engine3N2 > 0;
     const hasEngine4 = data.engine4N2 !== undefined && data.engine4N2 > 0;
@@ -1356,7 +1356,9 @@ updateEngineIndicators(data);
         const allEnginesRow = document.querySelector('#allEngines').parentElement;
         indicatorContainer = document.createElement('div');
         indicatorContainer.id = 'engineIndicators';
-        indicatorContainer.style.cssText = 'display: flex; gap: 5px; align-items: center;';
+        indicatorContainer.style.display = 'flex';
+        indicatorContainer.style.gap = '5px';
+        indicatorContainer.style.alignItems = 'center';
         
         // Insert between label and button
         const label = allEnginesRow.querySelector('.control-label');
@@ -1375,13 +1377,11 @@ updateEngineIndicators(data);
     
     for (let i = 0; i < numEngines; i++) {
         const indicator = document.createElement('div');
-        indicator.style.cssText = `
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
-            background: ${engineStates[i] ? '#167fac' : '#333'};
-            transition: background 0.3s;
-        `;
+        indicator.style.width = '12px';
+        indicator.style.height = '12px';
+        indicator.style.borderRadius = '2px';
+        indicator.style.background = engineStates[i] ? '#167fac' : '#333';
+        indicator.style.transition = 'background 0.3s';
         indicatorContainer.appendChild(indicator);
     }
 }
@@ -3056,6 +3056,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
