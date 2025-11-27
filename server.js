@@ -91,6 +91,12 @@ else if (data.type === 'request_control') {
   const password = data.password;
   const session = sessions.get(ws.uniqueId);
   
+  console.log('DEBUG request_control:');
+  console.log('  Entered password:', password);
+  console.log('  Session password:', session ? session.password : 'NO SESSION');
+  console.log('  Session guestPassword:', session ? session.guestPassword : 'NO SESSION');
+  console.log('  isGuestPasswordEnabled:', session ? session.isGuestPasswordEnabled : 'NO SESSION');
+  
   if (!session) {
     ws.send(JSON.stringify({ type: 'auth_failed' }));
     return;
@@ -99,6 +105,9 @@ else if (data.type === 'request_control') {
   // Check main password or guest password (only if guest password is enabled)
   const isMainPassword = password === session.password;
   const isGuestPassword = session.isGuestPasswordEnabled && password === session.guestPassword;
+  
+  console.log('  isMainPassword:', isMainPassword);
+  console.log('  isGuestPassword:', isGuestPassword);
   
   if (isMainPassword || isGuestPassword) {
     ws.hasControlAccess = true;
@@ -2974,6 +2983,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
