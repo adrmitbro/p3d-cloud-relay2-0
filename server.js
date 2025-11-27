@@ -996,8 +996,9 @@ function getMobileAppHTML() {
         
         <div class='card'>
             <h3>Aircraft</h3>
-<div class='control-row'>
+<div class='control-row' style='display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;'>
     <span class='control-label'>All Engines</span>
+    <div id='engineIndicators' style='display: flex; gap: 5px; justify-content: flex-end;'></div>
     <button class='toggle-btn off' id='allEngines' onclick='toggleAllEngines()'>OFF</button>
 </div>
             
@@ -1331,10 +1332,59 @@ function updateAutopilotUI(data) {
             updateToggle('lightRecognition', data.lightRecognition);
             updateToggle('noSmokingSwitch', data.noSmokingSwitch);
             updateToggle('seatbeltsSwitch', data.seatbeltsSwitch);
+            // Update all engines button based on any engine running
+const anyEngineRunning = data.engine1N2 > 10 || data.engine2N2 > 10 || data.engine3N2 > 10 || data.engine4N2 > 10;
+updateToggle('allEngines', anyEngineRunning, anyEngineRunning ? 'ON' : 'OFF');
+
+// Update engine indicators
+updateEngineIndicators(data);
             
             updateFlightSummary(data);
             updateAutopilotStatus(data);
         }
+
+        function updateEngineIndicators(data) {
+    // Determine number of engines
+    const hasEngine3 = data.engine3N2 !== undefined && data.engine3N2 > 0;
+    const hasEngine4 = data.engine4N2 !== undefined && data.engine4N2 > 0;
+    const numEngines = hasEngine4 ? 4 : (hasEngine3 ? 3 : 2);
+    
+    // Get or create indicator container
+    let indicatorContainer = document.getElementById('engineIndicators');
+    if (!indicatorContainer) {
+        // Create it if it doesn't exist
+        const allEnginesRow = document.querySelector('#allEngines').parentElement;
+        indicatorContainer = document.createElement('div');
+        indicatorContainer.id = 'engineIndicators';
+        indicatorContainer.style.cssText = 'display: flex; gap: 5px; align-items: center;';
+        
+        // Insert between label and button
+        const label = allEnginesRow.querySelector('.control-label');
+        label.parentNode.insertBefore(indicatorContainer, label.nextSibling);
+    }
+    
+    // Clear and rebuild indicators
+    indicatorContainer.innerHTML = '';
+    
+    const engineStates = [
+        data.engine1N2 > 10,
+        data.engine2N2 > 10,
+        data.engine3N2 > 10,
+        data.engine4N2 > 10
+    ];
+    
+    for (let i = 0; i < numEngines; i++) {
+        const indicator = document.createElement('div');
+        indicator.style.cssText = `
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            background: ${engineStates[i] ? '#167fac' : '#333'};
+            transition: background 0.3s;
+        `;
+        indicatorContainer.appendChild(indicator);
+    }
+}
 
         function updateFlightSummary(data) {
             const speedValue = data.apSpeed !== undefined ? Math.round(data.apSpeed) : '--';
@@ -3006,6 +3056,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
