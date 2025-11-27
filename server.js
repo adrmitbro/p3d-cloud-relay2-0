@@ -291,6 +291,20 @@ function getMobileAppHTML() {
             gap: 10px;
             font-family: 'Good Times', sans-serif;
         }
+        .btn-icon {
+            transition: all 0.3s;
+        }
+        
+        .btn-icon.active {
+            background: #167fac !important;
+            color: white !important;
+        }
+        
+        .btn-icon.disabled {
+            opacity: 0.4;
+            border-color: #666 !important;
+            color: #666 !important;
+        }
         .status {
             padding: 6px 12px;
             border-radius: 20px;
@@ -817,8 +831,11 @@ function getMobileAppHTML() {
         </div>
     </div>
 
-    <div class='header'>
-        <h1>Prepar3D Remote</h1>
+<div class='header'>
+        <div style='display: flex; justify-content: space-between; align-items: center;'>
+            <h1>Prepar3D Remote</h1>
+            <button id='notificationToggle' class='btn-icon' onclick='toggleNotifications()' style='background: transparent; border: 1px solid #167fac; color: #167fac; padding: 8px 12px; border-radius: 6px; font-size: 20px; cursor: pointer; display: none;'>🔔</button>
+        </div>
         <div id='statusBadge' class='status offline'>Offline</div>
         <div id='pauseBadge' class='status paused'>Paused</div>
     </div>
@@ -3085,40 +3102,71 @@ async function checkNotificationPermission() {
             }
             
             const permission = Notification.permission;
+            const toggleBtn = document.getElementById('notificationToggle');
             
             if (permission === 'granted') {
-                enableNotifications();
+                // Check if user had previously disabled notifications
+                const savedPreference = localStorage.getItem('notifications_enabled');
+                
+                if (savedPreference === 'false') {
+                    // Show toggle button but keep disabled
+                    toggleBtn.style.display = 'block';
+                    toggleBtn.classList.remove('active');
+                } else {
+                    // Enable by default
+                    enableNotifications();
+                }
             } else if (permission === 'default') {
+                // Show banner
                 const bannerDismissed = localStorage.getItem('notification_banner_dismissed');
                 if (!bannerDismissed) {
                     document.getElementById('notificationBanner').classList.add('show');
                 }
+                
+                // Show disabled toggle button
+                toggleBtn.style.display = 'block';
+                toggleBtn.classList.add('disabled');
+            } else if (permission === 'denied') {
+                // Show disabled toggle button
+                toggleBtn.style.display = 'block';
+                toggleBtn.classList.add('disabled');
             }
         }
 
-        async function requestNotificationPermission() {
+async function requestNotificationPermission() {
             if (!('Notification' in window)) {
                 alert('This browser does not support notifications');
                 return;
             }
             
             const permission = await Notification.requestPermission();
+            const toggleBtn = document.getElementById('notificationToggle');
             
             if (permission === 'granted') {
                 enableNotifications();
                 document.getElementById('notificationBanner').classList.remove('show');
             } else {
                 alert('Notifications blocked. Enable them in your browser settings.');
+                
+                // Show disabled toggle
+                toggleBtn.style.display = 'block';
+                toggleBtn.classList.add('disabled');
             }
         }
 
-        function dismissNotificationBanner() {
+function dismissNotificationBanner() {
             document.getElementById('notificationBanner').classList.remove('show');
             localStorage.setItem('notification_banner_dismissed', 'true');
+            
+            // Show disabled toggle button
+            const toggleBtn = document.getElementById('notificationToggle');
+            toggleBtn.style.display = 'block';
+            toggleBtn.classList.add('disabled');
         }
 
-        function enableNotifications() {
+function enableNotifications() {
             notificationsEnabled = true;
+            localStorage.setItem('notifications_enabled', 'true');
             
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
@@ -3127,11 +3175,63 @@ async function checkNotificationPermission() {
                 }));
             }
             
+            // Update toggle button
+            const toggleBtn = document.getElementById('notificationToggle');
+            if (toggleBtn) {
+                toggleBtn.classList.add('active');
+                toggleBtn.classList.remove('disabled');
+                toggleBtn.style.display = 'block';
+            }
+            
             new Notification('P3D Remote Connected', {
                 body: 'Lock screen notifications enabled',
                 tag: 'p3d-remote',
                 requireInteraction: false
             });
+        }
+        
+        function disableNotifications() {
+            notificationsEnabled = false;
+            localStorage.setItem('notifications_enabled', 'false');
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'enable_notifications',
+                    enabled: false
+                }));
+            }
+            
+            // Update toggle button
+            const toggleBtn = document.getElementById('notificationToggle');
+            if (toggleBtn) {
+                toggleBtn.classList.remove('active');
+            }
+        }
+        
+        function toggleNotifications() {
+            if (!('Notification' in window)) {
+                alert('This browser does not support notifications');
+                return;
+            }
+            
+            const permission = Notification.permission;
+            
+            if (permission === 'denied') {
+                alert('Notifications are blocked. Please enable them in your browser settings.');
+                return;
+            }
+            
+            if (permission === 'default') {
+                requestNotificationPermission();
+                return;
+            }
+            
+            // Toggle on/off
+            if (notificationsEnabled) {
+                disableNotifications();
+            } else {
+                enableNotifications();
+            }
         }
 
         function updateLockScreenNotification(data) {
@@ -3200,6 +3300,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
