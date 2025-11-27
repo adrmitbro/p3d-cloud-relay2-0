@@ -124,11 +124,11 @@ else if (data.type === 'request_control') {
         
         if (ws.clientType === 'mobile' && session.pcClient) {
           // Check if command requires control access
-if (data.type.includes('autopilot') || 
-    data.type === 'pause_toggle' || 
-    data.type === 'save_game' ||
-    data.type === 'toggle_gear' ||
-    data.type === 'toggle_engine' ||
+          if (data.type.includes('autopilot') || 
+              data.type === 'pause_toggle' || 
+              data.type === 'save_game' ||
+              data.type === 'toggle_all_engines' ||
+              data.type === 'toggle_gear' ||
               data.type === 'toggle_spoilers' ||
               data.type === 'toggle_speedbrake' ||
               data.type === 'toggle_parking_brake' ||
@@ -996,27 +996,9 @@ function getMobileAppHTML() {
         
         <div class='card'>
             <h3>Aircraft</h3>
-
-            <div id='engineControlsSection' style='display: none;'>
-    <div class='control-row' id='engine1Row' style='display: none;'>
-        <span class='control-label'>Engine 1</span>
-        <button class='toggle-btn off' id='engine1' onclick='toggleEngine(1)'>OFF</button>
-    </div>
-    
-    <div class='control-row' id='engine2Row' style='display: none;'>
-        <span class='control-label'>Engine 2</span>
-        <button class='toggle-btn off' id='engine2' onclick='toggleEngine(2)'>OFF</button>
-    </div>
-    
-    <div class='control-row' id='engine3Row' style='display: none;'>
-        <span class='control-label'>Engine 3</span>
-        <button class='toggle-btn off' id='engine3' onclick='toggleEngine(3)'>OFF</button>
-    </div>
-    
-    <div class='control-row' id='engine4Row' style='display: none;'>
-        <span class='control-label'>Engine 4</span>
-        <button class='toggle-btn off' id='engine4' onclick='toggleEngine(4)'>OFF</button>
-    </div>
+<div class='control-row'>
+    <span class='control-label'>All Engines</span>
+    <button class='toggle-btn off' id='allEngines' onclick='toggleAllEngines()'>OFF</button>
 </div>
             
             <div class='control-row'>
@@ -1238,7 +1220,7 @@ case 'auth_failed':
                 case 'autopilot_state':
                     updateAutopilotUI(data.data);
                     break;
-   
+                    
                 case 'ai_traffic':
                     aiAircraft = data.data;
                     updateNearbyAircraftList();
@@ -1352,52 +1334,7 @@ function updateAutopilotUI(data) {
             
             updateFlightSummary(data);
             updateAutopilotStatus(data);
-            // Update engine controls
-updateEngineControls(data);
         }
-
-function updateEngineControls(data) {
-    const hasEngine1 = data.engine1N2 !== undefined && data.engine1N2 > 0;
-    const hasEngine2 = data.engine2N2 !== undefined && data.engine2N2 > 0;
-    const hasEngine3 = data.engine3N2 !== undefined && data.engine3N3 > 0;
-    const hasEngine4 = data.engine4N2 !== undefined && data.engine4N2 > 0;
-    
-    const engineCount = hasEngine4 ? 4 : (hasEngine3 ? 3 : 2);
-    
-    // Show/hide engine controls section
-    const section = document.getElementById('engineControlsSection');
-    section.style.display = 'block';
-    
-    // Show/hide individual engine rows based on count
-    document.getElementById('engine1Row').style.display = engineCount >= 1 ? 'flex' : 'none';
-    document.getElementById('engine2Row').style.display = engineCount >= 2 ? 'flex' : 'none';
-    document.getElementById('engine3Row').style.display = engineCount >= 3 ? 'flex' : 'none';
-    document.getElementById('engine4Row').style.display = engineCount >= 4 ? 'flex' : 'none';
-    
-    // Update engine states using N2 > 10% as running indicator
-    if (engineCount >= 1) updateToggle('engine1', data.engine1N2 > 10, data.engine1N2 > 10 ? 'ON' : 'OFF');
-    if (engineCount >= 2) updateToggle('engine2', data.engine2N2 > 10, data.engine2N2 > 10 ? 'ON' : 'OFF');
-    if (engineCount >= 3) updateToggle('engine3', data.engine3N2 > 10, data.engine3N2 > 10 ? 'ON' : 'OFF');
-    if (engineCount >= 4) updateToggle('engine4', data.engine4N2 > 10, data.engine4N2 > 10 ? 'ON' : 'OFF');
-}
-
-function toggleEngine(engineNumber) {
-    console.log('toggleEngine called, engineNumber:', engineNumber);
-    console.log('hasControl:', hasControl);
-    console.log('ws:', ws);
-    console.log('ws.readyState:', ws ? ws.readyState : 'no ws');
-    
-    if (!hasControl) {
-        alert('Please unlock controls first');
-        return;
-    }
-    
-    console.log('Sending toggle_engine message');
-    const message = { type: 'toggle_engine', engineNumber: engineNumber };
-    console.log('Message:', JSON.stringify(message));
-    ws.send(JSON.stringify(message));
-    console.log('Message sent!');
-}
 
         function updateFlightSummary(data) {
             const speedValue = data.apSpeed !== undefined ? Math.round(data.apSpeed) : '--';
@@ -1922,6 +1859,10 @@ function unlockControls() {
         function toggleGear() {
             ws.send(JSON.stringify({ type: 'toggle_gear' }));
         }
+
+        function toggleAllEngines() {
+    ws.send(JSON.stringify({ type: 'toggle_all_engines' }));
+}
 
         function toggleSpeedbrake() {
             ws.send(JSON.stringify({ type: 'toggle_speedbrake' }));
@@ -3065,11 +3006,6 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
-
-
-
-
-
 
 
 
