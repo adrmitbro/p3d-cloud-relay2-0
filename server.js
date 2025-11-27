@@ -1184,15 +1184,19 @@ function switchTab(index) {
                     alert(data.message);
                     break;
                     
-                case 'control_granted':
-                    hasControl = true;
-                    document.getElementById('controlLock').classList.add('hidden');
-                    document.getElementById('controlPanel').classList.remove('hidden');
-                    break;
+case 'control_granted':
+    hasControl = true;
+    document.getElementById('controlLock').classList.add('hidden');
+    document.getElementById('controlPanel').classList.remove('hidden');
+    // Password was correct, keep it saved
+    break;
                     
-                case 'auth_failed':
-                    alert('Wrong password!');
-                    break;
+case 'auth_failed':
+    alert('Wrong password!');
+    // Clear saved password since it was wrong
+    localStorage.removeItem('p3d_control_password');
+    document.getElementById('controlPassword').value = '';
+    break;
                     
                 case 'control_required':
                     if (document.getElementById('controlLock').classList.contains('hidden')) {
@@ -1718,10 +1722,15 @@ function updateUserAircraftDetails() {
             }
         }
 
-        function unlockControls() {
-            const password = document.getElementById('controlPassword').value;
-            ws.send(JSON.stringify({ type: 'request_control', password }));
-        }
+function unlockControls() {
+    const password = document.getElementById('controlPassword').value;
+    ws.send(JSON.stringify({ type: 'request_control', password }));
+    
+    // Save password to localStorage for next time
+    if (password) {
+        localStorage.setItem('p3d_control_password', password);
+    }
+}
 
         function togglePause() {
             ws.send(JSON.stringify({ type: 'pause_toggle' }));
@@ -2969,12 +2978,17 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
     }
 }
 
-        window.onload = () => {
-            const savedId = localStorage.getItem('p3d_unique_id');
-            if (savedId) {
-                document.getElementById('uniqueId').value = savedId;
-            }
-        };
+window.onload = () => {
+    const savedId = localStorage.getItem('p3d_unique_id');
+    if (savedId) {
+        document.getElementById('uniqueId').value = savedId;
+    }
+    
+    const savedPassword = localStorage.getItem('p3d_control_password');
+    if (savedPassword) {
+        document.getElementById('controlPassword').value = savedPassword;
+    }
+};
     </script>
 </body>
 </html>`;
@@ -2983,6 +2997,7 @@ function drawArcGauge(ctx, x, y, radius, value, max, color) {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
