@@ -946,7 +946,7 @@ function getMobileAppHTML() {
             </div>
             
 <div class='control-row'>
-    <span class='control-label'>V/S Hold</span>
+    <span class='control-label'>Vertical Speed</span>
 </div>
             <div class='input-group'>
                 <input type='number' id='targetVS' placeholder='Vertical Speed (fpm)'>
@@ -3085,6 +3085,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
