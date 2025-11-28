@@ -898,6 +898,10 @@ function getMobileAppHTML() {
                         <div class='summary-label'>ALT</div>
                         <div class='summary-value' id='summaryAltitude'>--</div>
                     </div>
+                        <div class='summary-item'>
+        <div class='summary-label'>V/S</div>
+        <div class='summary-value' id='summaryVS'>--</div>
+    </div>
                 </div>
                 
                 <div class='summary-secondary'>
@@ -1393,6 +1397,9 @@ function updateFlightSummary(data) {
             
             const altValue = data.apAltitude !== undefined ? Math.round(data.apAltitude).toLocaleString() : '--';
             document.getElementById('summaryAltitude').textContent = altValue;
+
+            const vsValue = data.apVerticalSpeed !== undefined ? Math.round(data.apVerticalSpeed) : '--';
+document.getElementById('summaryVS').textContent = vsValue;
             
             document.getElementById('summaryFlaps').textContent = Math.round(data.flaps) + '%';
             
@@ -3085,6 +3092,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
