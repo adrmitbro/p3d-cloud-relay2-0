@@ -1372,6 +1372,8 @@ function getMobileAppHTML() {
         let mapInitialized = false;
         let flightStartTime = null;
         let totalFlightDistance = 0;
+        let initialTotalDistance = 0; // ADD THIS LINE
+
 let pfdCanvas = null;
 let pfdCtx = null;
 let mfdCanvas = null;
@@ -1540,13 +1542,24 @@ function updateFlightData(data) {
                 document.getElementById('wpEte').textContent = 'ETE: --';
             }
             
-            // Total distance
-            if (data.totalDistance && data.totalDistance > 0) {
-                document.getElementById('distance').textContent = data.totalDistance.toFixed(1);
-                totalFlightDistance = data.totalDistance;
-            } else {
-                document.getElementById('distance').textContent = '--';
-            }
+// Total distance - capture initial value when flight plan activates
+if (data.flightPlanActive && data.totalDistance && data.totalDistance > 0) {
+    // Store initial distance only once when flight plan first activates
+    if (initialTotalDistance === 0 || data.totalDistance > initialTotalDistance) {
+        initialTotalDistance = data.totalDistance;
+        console.log('Initial flight distance captured:', initialTotalDistance, 'nm');
+    }
+    
+    document.getElementById('distance').textContent = data.totalDistance.toFixed(1);
+    totalFlightDistance = initialTotalDistance; // Use initial distance for calculations
+} else {
+    document.getElementById('distance').textContent = '--';
+    if (!data.flightPlanActive) {
+        // Reset when flight plan deactivates
+        initialTotalDistance = 0;
+        flightStartTime = null;
+    }
+}
             
             // ETE
             if (data.ete && data.ete > 0) {
@@ -1588,10 +1601,11 @@ if (map && data.latitude && data.longitude) {
         }
         
         function updateFlightProgress(data) {
-            // Initialize start time if not set and we have valid distance
-            if (!flightStartTime && data.totalDistance > 0 && data.groundSpeed > 5) {
-                flightStartTime = Date.now();
-            }
+// Initialize start time if not set and we have valid initial distance
+if (!flightStartTime && initialTotalDistance > 0 && data.groundSpeed > 5) {
+    flightStartTime = Date.now();
+    console.log('Flight timer started');
+}
             
             if (!flightStartTime) {
                 document.getElementById('timeElapsed').textContent = 'Elapsed: --';
@@ -3549,6 +3563,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
