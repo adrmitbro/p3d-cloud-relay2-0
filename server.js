@@ -2027,71 +2027,83 @@ userMarker.on('click', function(e) {
         }
 
 function drawFlightRoute(data) {
-    if (!map || !routeLayer) return;
-    
-    // Clear existing route
-    routeLayer.clearLayers();
-    waypointMarkers = [];
-    
-    // Don't draw if no active flight plan
-    if (!data.flightPlanActive || !data.nextWaypoint) return;
-    
-    // Use ACTUAL waypoint coordinates if available
-    if (data.nextWaypointLat && data.nextWaypointLon && 
-        data.nextWaypointLat !== 0 && data.nextWaypointLon !== 0) {
-        
-        const wpLat = data.nextWaypointLat;
-        const wpLon = data.nextWaypointLon;
-        
-        // Draw line from PREVIOUS waypoint to CURRENT position (already flown)
-        if (data.prevWaypointLat && data.prevWaypointLon && 
-            data.prevWaypointLat !== 0 && data.prevWaypointLon !== 0) {
+            if (!map || !routeLayer) return;
             
-            const flownLine = L.polyline(
-                [[data.prevWaypointLat, data.prevWaypointLon], [data.latitude, data.longitude]],
-                {
-                    color: '#00ff00',  // Green for completed
-                    weight: 3,
-                    opacity: 0.7
+            // Clear existing route
+            routeLayer.clearLayers();
+            waypointMarkers = [];
+            
+            // Don't draw if no active flight plan
+            if (!data.flightPlanActive || !data.nextWaypoint) return;
+            
+            // For now, draw a simple line from current position to next waypoint
+            // (Full route would require getting all waypoints from SimConnect)
+            
+            // Draw line to next waypoint if we have bearing and distance
+            if (data.bearingToWaypoint && data.distanceToWaypoint && data.distanceToWaypoint > 0) {
+                const bearing = data.bearingToWaypoint * Math.PI / 180;
+                const distance = data.distanceToWaypoint / 60; // Convert nm to degrees (approximate)
+                
+                const wpLat = data.latitude + (distance * Math.cos(bearing));
+                const wpLon = data.longitude + (distance * Math.sin(bearing) / Math.cos(data.latitude * Math.PI / 180));
+                
+                // Draw line
+                const routeLine = L.polyline(
+                    [[data.latitude, data.longitude], [wpLat, wpLon]],
+                    {
+                        color: '#167fac',
+                        weight: 3,
+                        opacity: 0.7,
+                        dashArray: '10, 5'
+                    }
+                ).addTo(routeLayer);
+                
+                // Add waypoint marker
+                const wpMarker = L.marker([wpLat, wpLon], {
+                    icon: L.divIcon({
+                        html: '<div class="waypoint-marker"></div>',
+                        className: '',
+                        iconSize: [12, 12],
+                        iconAnchor: [6, 6]
+                    })
+                }).addTo(routeLayer);
+                
+                wpMarker.bindPopup('<b>' + data.nextWaypoint + '</b><br>Distance: ' + data.distanceToWaypoint.toFixed(1) + ' nm');
+                waypointMarkers.push(wpMarker);
+                
+                // If we have destination info, draw extended line
+                if (data.totalDistance && data.totalDistance > data.distanceToWaypoint) {
+                    const totalDistDeg = data.totalDistance / 60;
+                    const destLat = data.latitude + (totalDistDeg * Math.cos(bearing));
+                    const destLon = data.longitude + (totalDistDeg * Math.sin(bearing) / Math.cos(data.latitude * Math.PI / 180));
+                    
+                    // Extended route line
+                    const extendedLine = L.polyline(
+                        [[wpLat, wpLon], [destLat, destLon]],
+                        {
+                            color: '#167fac',
+                            weight: 2,
+                            opacity: 0.4,
+                            dashArray: '5, 10'
+                        }
+                    ).addTo(routeLayer);
+                    
+                    // Destination marker
+                    if (data.flightPlanDestination && data.flightPlanDestination !== data.nextWaypoint) {
+                        const destMarker = L.marker([destLat, destLon], {
+                            icon: L.divIcon({
+                                html: '<div class="destination-marker"></div>',
+                                className: '',
+                                iconSize: [16, 16],
+                                iconAnchor: [8, 8]
+                            })
+                        }).addTo(routeLayer);
+                        
+                        destMarker.bindPopup('<b>DESTINATION</b><br>' + (data.flightPlanDestination || 'Unknown') + '<br>Distance: ' + data.totalDistance.toFixed(1) + ' nm');
+                    }
                 }
-            ).addTo(routeLayer);
-            
-            // Previous waypoint marker
-            const prevMarker = L.marker([data.prevWaypointLat, data.prevWaypointLon], {
-                icon: L.divIcon({
-                    html: '<div class="waypoint-marker" style="background: #00ff00;"></div>',
-                    className: '',
-                    iconSize: [12, 12],
-                    iconAnchor: [6, 6]
-                })
-            }).addTo(routeLayer);
-        }
-        
-        // Draw line from CURRENT position to NEXT waypoint (remaining)
-        const routeLine = L.polyline(
-            [[data.latitude, data.longitude], [wpLat, wpLon]],
-            {
-                color: '#167fac',
-                weight: 3,
-                opacity: 0.7,
-                dashArray: '10, 5'
             }
-        ).addTo(routeLayer);
-        
-        // Next waypoint marker
-        const wpMarker = L.marker([wpLat, wpLon], {
-            icon: L.divIcon({
-                html: '<div class="waypoint-marker"></div>',
-                className: '',
-                iconSize: [12, 12],
-                iconAnchor: [6, 6]
-            })
-        }).addTo(routeLayer);
-        
-        wpMarker.bindPopup('<b>' + data.nextWaypoint + '</b><br>Distance: ' + data.distanceToWaypoint.toFixed(1) + ' nm');
-        waypointMarkers.push(wpMarker);
-    }
-}
+        }
 
 function updateUserAircraftDetails() {
     const detailsPanel = document.getElementById('aircraftDetails');
@@ -3537,9 +3549,6 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
-
-
-
 
 
 
