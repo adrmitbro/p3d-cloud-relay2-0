@@ -919,7 +919,7 @@ function getMobileAppHTML() {
     <span class='status-badge' id='apMasterStatus'>AP</span>
     <span class='status-badge' id='apAltStatus'>ALT</span>
     <span class='status-badge' id='apHdgStatus'>HDG</span>
-    <span class='status-badge' id='apVSStatus'>V/S</span>
+    <span class='status-badge' id='apAltStatus'>V/S</span>
     <span class='status-badge' id='apSpeedStatus'>SPD</span>
     <span class='status-badge' id='apLocStatus'>LOC</span>
     <span class='status-badge active' id='apNavGpsStatus'>GPS</span>
@@ -945,10 +945,7 @@ function getMobileAppHTML() {
                 <input type='number' id='targetAlt' placeholder='Target Altitude (ft)'>
                 <button class='btn btn-primary' onclick='setAltitude()'>Set</button>
             </div>
-            
-            <div class='control-row'>
-                <span class='control-label'>V/S Hold</span>
-            </div>
+
             <div class='input-group'>
                 <input type='number' id='targetVS' placeholder='Vertical Speed (fpm)'>
                 <button class='btn btn-primary' onclick='setVS()'>Set</button>
@@ -3055,6 +3052,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
