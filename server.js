@@ -898,10 +898,6 @@ function getMobileAppHTML() {
                         <div class='summary-label'>ALT</div>
                         <div class='summary-value' id='summaryAltitude'>--</div>
                     </div>
-                    <div class='summary-item'>
-                        <div class='summary-label'>V/S</div>
-                        <div class='summary-value' id='summaryVS'>--</div>
-                    </div>
                 </div>
                 
                 <div class='summary-secondary'>
@@ -923,7 +919,6 @@ function getMobileAppHTML() {
     <span class='status-badge' id='apMasterStatus'>AP</span>
     <span class='status-badge' id='apAltStatus'>ALT</span>
     <span class='status-badge' id='apHdgStatus'>HDG</span>
-    <span class='status-badge' id='apVSStatus'>V/S</span>
     <span class='status-badge' id='apSpeedStatus'>SPD</span>
     <span class='status-badge' id='apLocStatus'>LOC</span>
     <span class='status-badge active' id='apNavGpsStatus'>GPS</span>
@@ -950,10 +945,9 @@ function getMobileAppHTML() {
                 <button class='btn btn-primary' onclick='setAltitude()'>Set</button>
             </div>
             
-            <div class='control-row'>
-                <span class='control-label'>V/S Hold</span>
-                <button class='toggle-btn off' id='apVS' onclick='toggleAP("vs")'>OFF</button>
-            </div>
+<div class='control-row'>
+    <span class='control-label'>V/S Hold</span>
+</div>
             <div class='input-group'>
                 <input type='number' id='targetVS' placeholder='Vertical Speed (fpm)'>
                 <button class='btn btn-primary' onclick='setVS()'>Set</button>
@@ -1399,9 +1393,6 @@ function updateFlightSummary(data) {
             
             const altValue = data.apAltitude !== undefined ? Math.round(data.apAltitude).toLocaleString() : '--';
             document.getElementById('summaryAltitude').textContent = altValue;
-            
-            const vsValue = data.apVerticalSpeed !== undefined ? Math.round(data.apVerticalSpeed) : '--';
-            document.getElementById('summaryVS').textContent = vsValue;
             
             document.getElementById('summaryFlaps').textContent = Math.round(data.flaps) + '%';
             
@@ -3094,6 +3085,7 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
 
 
 
