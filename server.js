@@ -1107,7 +1107,7 @@ function getMobileAppHTML() {
         let followUser = false;
         let mapDragStart = null;
         let isDragging = false;
-        let showAircraftLabels = true;
+        let showAircraftLabels = false;
         let uniqueId = null;
         let hasControl = false;
         let isPaused = false;
@@ -1220,9 +1220,10 @@ case 'auth_failed':
                     updateFlightData(data.data);
                     break;
                     
-                case 'autopilot_state':
-                    updateAutopilotUI(data.data);
-                    break;
+case 'autopilot_state':
+    console.log('Received autopilot_state:', data.data);
+    updateAutopilotUI(data.data);
+    break;
                     
                 case 'ai_traffic':
                     aiAircraft = data.data;
@@ -1449,7 +1450,6 @@ function updateAutopilotStatus(data) {
     updateStatusBadge('apMasterStatus', data.master);
     updateStatusBadge('apAltStatus', data.altitude);
     updateStatusBadge('apHdgStatus', data.heading);
-    updateStatusBadge('apVSStatus', data.vs);
     updateStatusBadge('apSpeedStatus', data.speed);
     updateStatusBadge('apLocStatus', data.nav);
     updateStatusBadge('apAppStatus', data.approach);
@@ -1518,6 +1518,7 @@ function updateAutopilotStatus(data) {
             }).addTo(map);
 
             document.getElementById('followUserBtn').textContent = followUser ? 'Following' : 'Follow Aircraft';
+            document.getElementById('toggleLabelsBtn').textContent = showAircraftLabels ? 'Hide Labels' : 'Show Labels';
             
             map.on('mousedown', function(e) {
                 if (e.originalEvent.button === 0) {
@@ -3092,6 +3093,8 @@ window.onload = () => {
 server.listen(PORT, () => {
   console.log(`P3D Remote Cloud Relay running on port ${PORT}`);
 });
+
+
 
 
 
